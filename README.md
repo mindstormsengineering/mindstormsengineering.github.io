@@ -1,6 +1,6 @@
 # Mindstorms Engineering — Jekyll Site
 
-A static Jekyll site for [nathancharlesjones.github.io](https://nathancharlesjones.github.io),
+A static Jekyll site for [mindstormsengineering.github.io](https://mindstormsengineering.github.io),
 migrated from WordPress. Custom theme with no external dependencies beyond two Google Font
 families and the standard `jekyll-feed` / `jekyll-seo-tag` plugins.
 
