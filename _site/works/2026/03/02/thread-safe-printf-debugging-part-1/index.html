@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thread-safe printf Debugging (Part 1) | Mindstorms Engineering, LLC</title>
+  <meta name="description" content="Naive printf calls from ISRs or RTOS threads produce garbled output or worse. Part 1 works through three solutions — disabling interrupts, a mutex, and a dou...">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="icon" type="image/png" href="/assets/images/logo_small.png">
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Thread-safe printf Debugging (Part 1) | Mindstorms Engineering, LLC</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Thread-safe printf Debugging (Part 1)" />
+<meta name="author" content="Nathan Jones" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Naive printf calls from ISRs or RTOS threads produce garbled output or worse. Part 1 works through three solutions — disabling interrupts, a mutex, and a double buffer — each better than the last but with its own caveats." />
+<meta name="twitter:description" property="og:description" content="Naive printf calls from ISRs or RTOS threads produce garbled output or worse. Part 1 works through three solutions — disabling interrupts, a mutex, and a double buffer — each better than the last but with its own caveats." />
+<link rel="canonical" href="http://localhost:4000/works/2026/03/02/thread-safe-printf-debugging-part-1/" />
+<meta property="og:url" content="http://localhost:4000/works/2026/03/02/thread-safe-printf-debugging-part-1/" />
+<meta property="og:site_name" content="Mindstorms Engineering, LLC" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2026-03-02T00:00:00-06:00" />
+<meta property="article:modified_time" content="2026-03-02T00:00:00-06:00" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Thread-safe printf Debugging (Part 1)" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Nathan Jones"},"dateModified":"2026-03-02T00:00:00-06:00","datePublished":"2026-03-02T00:00:00-06:00","description":"Naive printf calls from ISRs or RTOS threads produce garbled output or worse. Part 1 works through three solutions — disabling interrupts, a mutex, and a double buffer — each better than the last but with its own caveats.","headline":"Thread-safe printf Debugging (Part 1)","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/works/2026/03/02/thread-safe-printf-debugging-part-1/"},"url":"http://localhost:4000/works/2026/03/02/thread-safe-printf-debugging-part-1/"}</script>
+<!-- End Jekyll SEO tag -->
+
+  <link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Mindstorms Engineering, LLC" />
+</head>
+<body>
+
+  <nav class="site-nav" id="site-nav">
+    <a href="/" class="nav-brand">
+      <img src="/assets/images/logo_medium.png" alt="Mindstorms Engineering" class="nav-logo">
+    </a>
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleNav(this)">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="nav-links">
+      <a href="/#about">About</a>
+      <a href="/#services">Services</a>
+      <a href="/works.html">Works</a>
+      <a href="/#contact">Contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <article class="post-page">
+
+  <header class="post-header">
+    <div class="post-meta-top">
+      
+        <span class="tag tag-type tag-article">article</span>
+      
+      
+        
+          <span class="tag tag-subject">firmware</span>
+        
+          <span class="tag tag-subject">education</span>
+        
+      
+    </div>
+
+    <h1 class="post-title">Thread-safe printf Debugging (Part 1)</h1>
+
+    
+      <p class="post-excerpt">Naive printf calls from ISRs or RTOS threads produce garbled output or worse. Part 1 works through three solutions — disabling interrupts, a mutex, and a double buffer — each better than the last but with its own caveats.
+</p>
+    
+
+    <div class="post-meta-bottom">
+      <time datetime="2026-03-02T00:00:00-06:00">
+        March 2, 2026
+      </time>
+      
+    </div>
+  </header>
+
+  
+
+  <div class="post-content">
+    <p><em>Originally published on <a href="https://www.digikey.com/en/maker/tutorials/2026/thread-safe-printf-debugging-part-1">Maker.io (DigiKey)</a>.</em></p>
+
+<p><img src="/assets/thread_safe_p1/disable_interrupts.png" alt="Interrupt disable protecting a printf critical section" /></p>
+
+<p>Two RTOS threads calling <code class="language-plaintext highlighter-rouge">printf</code> at the same time will interleave their characters. Two ISRs doing the same can corrupt UART peripheral state. The naive fix — wrapping every printf in a critical section — works but blocks all other interrupts for as long as it takes to format and transmit the message, which at 3 Mbaud and 22 characters is still tens of microseconds.</p>
+
+<p>Three progressively better approaches: disable interrupts around the entire call (simple, correct, blocks everything); use an RTOS mutex (correct for thread-to-thread communication, but mutexes can’t be acquired from ISRs); use a double buffer that separates formatting from transmission so the critical section only covers the memory copy, not the UART write. The double buffer is the most capable solution but introduces its own race conditions — which Part 2 addresses.</p>
+
+<p><a href="https://www.digikey.com/en/maker/tutorials/2026/thread-safe-printf-debugging-part-1">Read the full article →</a></p>
+
+  </div>
+
+  <footer class="post-footer">
+    <a href="/works.html" class="back-link">← Back to Works</a>
+
+    
+    <div class="post-tags">
+      
+        <a href="/works.html?type=article" class="tag tag-type tag-article">article</a>
+      
+      
+        <a href="/works.html?subject=firmware" class="tag tag-subject">firmware</a>
+      
+        <a href="/works.html?subject=education" class="tag tag-subject">education</a>
+      
+    </div>
+    
+  </footer>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-col">
+        <img src="/assets/images/logo_full.png" alt="Mindstorms Engineering, LLC" class="footer-logo">
+      </div>
+      <div class="footer-col">
+        <p class="footer-label">Connect</p>
+        <a href="https://www.linkedin.com/in/nathancharlesjones">LinkedIn</a>
+        <a href="https://github.com/nathancharlesjones">GitHub</a>
+        <a href="https://www.tindie.com/stores/0xc0decafe/">Tindie</a>
+        <a href="/feed.xml">RSS Feed</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-label">Contact</p>
+        <a href="mailto:contact@mindstormsengineering.com">contact@mindstormsengineering.com</a>
+        <a href="tel:6154884789">615.488.4789</a>
+        <p class="footer-hours">8:30am – 2:30pm CT, Monday – Friday</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Mindstorms Engineering, LLC. All rights reserved.</span>
+    </div>
+  </footer>
+
+  <script src="/assets/js/main.js"></script>
+
+</body>
+</html>

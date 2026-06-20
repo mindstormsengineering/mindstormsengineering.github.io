@@ -1,4 +1,5 @@
 ---
+published: false
 layout: post
 title: "AES-Based Challenge-Response Authentication for Key Fob Systems"
 date: 2024-06-15

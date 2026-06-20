@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Why is This Code Bad? | Mindstorms Engineering, LLC</title>
+  <meta name="description" content="A Python function for parsing GCC dependency files becomes a case study in what separates "barely working" code from simple code — and why simplicity is wort...">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="icon" type="image/png" href="/assets/images/logo_small.png">
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Why is This Code Bad? | Mindstorms Engineering, LLC</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Why is This Code Bad?" />
+<meta name="author" content="Nathan Jones" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="A Python function for parsing GCC dependency files becomes a case study in what separates “barely working” code from simple code — and why simplicity is worth pursuing deliberately." />
+<meta name="twitter:description" property="og:description" content="A Python function for parsing GCC dependency files becomes a case study in what separates “barely working” code from simple code — and why simplicity is worth pursuing deliberately." />
+<link rel="canonical" href="http://localhost:4000/works/2025/10/08/why-is-this-code-bad/" />
+<meta property="og:url" content="http://localhost:4000/works/2025/10/08/why-is-this-code-bad/" />
+<meta property="og:site_name" content="Mindstorms Engineering, LLC" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2025-10-08T00:00:00-05:00" />
+<meta property="article:modified_time" content="2025-10-08T00:00:00-05:00" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Why is This Code Bad?" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Nathan Jones"},"dateModified":"2025-10-08T00:00:00-05:00","datePublished":"2025-10-08T00:00:00-05:00","description":"A Python function for parsing GCC dependency files becomes a case study in what separates “barely working” code from simple code — and why simplicity is worth pursuing deliberately.","headline":"Why is This Code Bad?","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/works/2025/10/08/why-is-this-code-bad/"},"url":"http://localhost:4000/works/2025/10/08/why-is-this-code-bad/"}</script>
+<!-- End Jekyll SEO tag -->
+
+  <link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Mindstorms Engineering, LLC" />
+</head>
+<body>
+
+  <nav class="site-nav" id="site-nav">
+    <a href="/" class="nav-brand">
+      <img src="/assets/images/logo_medium.png" alt="Mindstorms Engineering" class="nav-logo">
+    </a>
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleNav(this)">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="nav-links">
+      <a href="/#about">About</a>
+      <a href="/#services">Services</a>
+      <a href="/works.html">Works</a>
+      <a href="/#contact">Contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <article class="post-page">
+
+  <header class="post-header">
+    <div class="post-meta-top">
+      
+        <span class="tag tag-type tag-article">article</span>
+      
+      
+        
+          <span class="tag tag-subject">firmware</span>
+        
+          <span class="tag tag-subject">education</span>
+        
+      
+    </div>
+
+    <h1 class="post-title">Why is This Code Bad?</h1>
+
+    
+      <p class="post-excerpt">A Python function for parsing GCC dependency files becomes a case study in what separates "barely working" code from simple code — and why simplicity is worth pursuing deliberately.
+</p>
+    
+
+    <div class="post-meta-bottom">
+      <time datetime="2025-10-08T00:00:00-05:00">
+        October 8, 2025
+      </time>
+      
+    </div>
+  </header>
+
+  
+
+  <div class="post-content">
+    <p><em>Originally published on <a href="https://www.digikey.com/en/maker/tutorials/2025/why-is-this-code-bad">Maker.io (DigiKey)</a>.</em></p>
+
+<p><img src="/assets/bad_code/BadCode_10_Spectrum5.png" alt="A spectrum from broken code to simple, elegant code" /></p>
+
+<p>The article opens with two implementations of the same function — one sprawling, one concise — and asks why the shorter one feels easier to work with, not just shorter. The answer leads to a “spectrum of badness” from “doesn’t work” through “barely working spaghetti” to “simple and correct,” with cyclomatic complexity and unnecessary abstraction as the two main drags on code quality.</p>
+
+<p>The case study is a real function: parsing GCC <code class="language-plaintext highlighter-rouge">.d</code> dependency files to extract a list of file paths. The first solution had a subtle bug (mutating a list while iterating over it), and fixing it revealed a simpler framing of the whole problem — read the file as one string, replace newlines with spaces, split on spaces, filter for valid paths. The result is shorter, has no mutation hazard, and is easier to reason about.</p>
+
+<p>When a simple solution isn’t available, structured refactorings (Extract Method, Replace Conditional with a Look-up Table) keep complexity manageable. When complexity is unavoidable, comments that show concrete input/output examples and accompanying flowcharts are more useful than prose descriptions — and a unit test is worth more than either.</p>
+
+<p><a href="https://www.digikey.com/en/maker/tutorials/2025/why-is-this-code-bad">Read the full article →</a></p>
+
+  </div>
+
+  <footer class="post-footer">
+    <a href="/works.html" class="back-link">← Back to Works</a>
+
+    
+    <div class="post-tags">
+      
+        <a href="/works.html?type=article" class="tag tag-type tag-article">article</a>
+      
+      
+        <a href="/works.html?subject=firmware" class="tag tag-subject">firmware</a>
+      
+        <a href="/works.html?subject=education" class="tag tag-subject">education</a>
+      
+    </div>
+    
+  </footer>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-col">
+        <img src="/assets/images/logo_full.png" alt="Mindstorms Engineering, LLC" class="footer-logo">
+      </div>
+      <div class="footer-col">
+        <p class="footer-label">Connect</p>
+        <a href="https://www.linkedin.com/in/nathancharlesjones">LinkedIn</a>
+        <a href="https://github.com/nathancharlesjones">GitHub</a>
+        <a href="https://www.tindie.com/stores/0xc0decafe/">Tindie</a>
+        <a href="/feed.xml">RSS Feed</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-label">Contact</p>
+        <a href="mailto:contact@mindstormsengineering.com">contact@mindstormsengineering.com</a>
+        <a href="tel:6154884789">615.488.4789</a>
+        <p class="footer-hours">8:30am – 2:30pm CT, Monday – Friday</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Mindstorms Engineering, LLC. All rights reserved.</span>
+    </div>
+  </footer>
+
+  <script src="/assets/js/main.js"></script>
+
+</body>
+</html>

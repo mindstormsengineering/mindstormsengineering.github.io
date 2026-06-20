@@ -1,4 +1,5 @@
 ---
+published: false
 layout: post
 title: "Getting Started with FPGA Design: A Practical Introduction"
 date: 2023-11-01

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Improved printf Debugging | Mindstorms Engineering, LLC</title>
+  <meta name="description" content="Two additions that make printf debugging significantly more useful: automatic source location tagging via C macros, and severity-level filtering with compile...">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="icon" type="image/png" href="/assets/images/logo_small.png">
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Improved printf Debugging | Mindstorms Engineering, LLC</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Improved printf Debugging" />
+<meta name="author" content="Nathan Jones" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Two additions that make printf debugging significantly more useful: automatic source location tagging via C macros, and severity-level filtering with compile-time removal of the entire debug subsystem." />
+<meta name="twitter:description" property="og:description" content="Two additions that make printf debugging significantly more useful: automatic source location tagging via C macros, and severity-level filtering with compile-time removal of the entire debug subsystem." />
+<link rel="canonical" href="http://localhost:4000/works/2025/09/29/improved-printf-debugging/" />
+<meta property="og:url" content="http://localhost:4000/works/2025/09/29/improved-printf-debugging/" />
+<meta property="og:site_name" content="Mindstorms Engineering, LLC" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2025-09-29T00:00:00-05:00" />
+<meta property="article:modified_time" content="2025-09-29T00:00:00-05:00" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Improved printf Debugging" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Nathan Jones"},"dateModified":"2025-09-29T00:00:00-05:00","datePublished":"2025-09-29T00:00:00-05:00","description":"Two additions that make printf debugging significantly more useful: automatic source location tagging via C macros, and severity-level filtering with compile-time removal of the entire debug subsystem.","headline":"Improved printf Debugging","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/works/2025/09/29/improved-printf-debugging/"},"url":"http://localhost:4000/works/2025/09/29/improved-printf-debugging/"}</script>
+<!-- End Jekyll SEO tag -->
+
+  <link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Mindstorms Engineering, LLC" />
+</head>
+<body>
+
+  <nav class="site-nav" id="site-nav">
+    <a href="/" class="nav-brand">
+      <img src="/assets/images/logo_medium.png" alt="Mindstorms Engineering" class="nav-logo">
+    </a>
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleNav(this)">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="nav-links">
+      <a href="/#about">About</a>
+      <a href="/#services">Services</a>
+      <a href="/works.html">Works</a>
+      <a href="/#contact">Contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <article class="post-page">
+
+  <header class="post-header">
+    <div class="post-meta-top">
+      
+        <span class="tag tag-type tag-article">article</span>
+      
+      
+        
+          <span class="tag tag-subject">firmware</span>
+        
+          <span class="tag tag-subject">education</span>
+        
+      
+    </div>
+
+    <h1 class="post-title">Improved printf Debugging</h1>
+
+    
+      <p class="post-excerpt">Two additions that make printf debugging significantly more useful: automatic source location tagging via C macros, and severity-level filtering with compile-time removal of the entire debug subsystem.
+</p>
+    
+
+    <div class="post-meta-bottom">
+      <time datetime="2025-09-29T00:00:00-05:00">
+        September 29, 2025
+      </time>
+      
+    </div>
+  </header>
+
+  
+
+  <div class="post-content">
+    <p><em>Originally published on <a href="https://www.digikey.com/en/maker/tutorials/2025/improved-printf-debugging">Maker.io (DigiKey)</a>.</em></p>
+
+<p><img src="/assets/improved_printf/Improved_02_Adding-severities.png" alt="Adding severity levels to debug output" /></p>
+
+<p>A bare <code class="language-plaintext highlighter-rouge">printf("here\n")</code> tells you almost nothing once your codebase has more than a handful of print statements. Two additions change that substantially. The first wraps <code class="language-plaintext highlighter-rouge">printf</code> in a macro that automatically prepends the file, line number, and function name using <code class="language-plaintext highlighter-rouge">__FILE__</code>, <code class="language-plaintext highlighter-rouge">__LINE__</code>, and <code class="language-plaintext highlighter-rouge">__func__</code> — turning every message into something immediately locatable and searchable without manual annotation.</p>
+
+<p>The second adds severity levels (INFO, WARNING, ERROR) and a global logging threshold, so you can dial back output to just warnings and errors in the field while keeping verbose info logs available during development. A compile-time <code class="language-plaintext highlighter-rouge">#if DEBUG</code> guard lets the assembler emit zero debug code in production builds.</p>
+
+<p>Both additions together fit in about 20 lines of C.</p>
+
+<p><a href="https://www.digikey.com/en/maker/tutorials/2025/improved-printf-debugging">Read the full article →</a></p>
+
+  </div>
+
+  <footer class="post-footer">
+    <a href="/works.html" class="back-link">← Back to Works</a>
+
+    
+    <div class="post-tags">
+      
+        <a href="/works.html?type=article" class="tag tag-type tag-article">article</a>
+      
+      
+        <a href="/works.html?subject=firmware" class="tag tag-subject">firmware</a>
+      
+        <a href="/works.html?subject=education" class="tag tag-subject">education</a>
+      
+    </div>
+    
+  </footer>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-col">
+        <img src="/assets/images/logo_full.png" alt="Mindstorms Engineering, LLC" class="footer-logo">
+      </div>
+      <div class="footer-col">
+        <p class="footer-label">Connect</p>
+        <a href="https://www.linkedin.com/in/nathancharlesjones">LinkedIn</a>
+        <a href="https://github.com/nathancharlesjones">GitHub</a>
+        <a href="https://www.tindie.com/stores/0xc0decafe/">Tindie</a>
+        <a href="/feed.xml">RSS Feed</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-label">Contact</p>
+        <a href="mailto:contact@mindstormsengineering.com">contact@mindstormsengineering.com</a>
+        <a href="tel:6154884789">615.488.4789</a>
+        <p class="footer-hours">8:30am – 2:30pm CT, Monday – Friday</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Mindstorms Engineering, LLC. All rights reserved.</span>
+    </div>
+  </footer>
+
+  <script src="/assets/js/main.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How Hardware Gets Hacked (Part 3): Adopting the Attacker Mindset | Mindstorms Engineering, LLC</title>
+  <meta name="description" content="Part 3 is about reconnaissance: a four-step framework for building an attacker's understanding of the target before attempting any exploit.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="icon" type="image/png" href="/assets/images/logo_small.png">
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>How Hardware Gets Hacked (Part 3): Adopting the Attacker Mindset | Mindstorms Engineering, LLC</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="How Hardware Gets Hacked (Part 3): Adopting the Attacker Mindset" />
+<meta name="author" content="Nathan Jones" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Part 3 is about reconnaissance: a four-step framework for building an attacker’s understanding of the target before attempting any exploit." />
+<meta name="twitter:description" property="og:description" content="Part 3 is about reconnaissance: a four-step framework for building an attacker’s understanding of the target before attempting any exploit." />
+<link rel="canonical" href="http://localhost:4000/works/2026/04/20/how-hardware-gets-hacked-part-3-adopting-the-attacker-mindset/" />
+<meta property="og:url" content="http://localhost:4000/works/2026/04/20/how-hardware-gets-hacked-part-3-adopting-the-attacker-mindset/" />
+<meta property="og:site_name" content="Mindstorms Engineering, LLC" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2026-04-20T00:00:00-05:00" />
+<meta property="article:modified_time" content="2026-04-20T00:00:00-05:00" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="How Hardware Gets Hacked (Part 3): Adopting the Attacker Mindset" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Nathan Jones"},"dateModified":"2026-04-20T00:00:00-05:00","datePublished":"2026-04-20T00:00:00-05:00","description":"Part 3 is about reconnaissance: a four-step framework for building an attacker’s understanding of the target before attempting any exploit.","headline":"How Hardware Gets Hacked (Part 3): Adopting the Attacker Mindset","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/works/2026/04/20/how-hardware-gets-hacked-part-3-adopting-the-attacker-mindset/"},"url":"http://localhost:4000/works/2026/04/20/how-hardware-gets-hacked-part-3-adopting-the-attacker-mindset/"}</script>
+<!-- End Jekyll SEO tag -->
+
+  <link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Mindstorms Engineering, LLC" />
+</head>
+<body>
+
+  <nav class="site-nav" id="site-nav">
+    <a href="/" class="nav-brand">
+      <img src="/assets/images/logo_medium.png" alt="Mindstorms Engineering" class="nav-logo">
+    </a>
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleNav(this)">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="nav-links">
+      <a href="/#about">About</a>
+      <a href="/#services">Services</a>
+      <a href="/works.html">Works</a>
+      <a href="/#contact">Contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <article class="post-page">
+
+  <header class="post-header">
+    <div class="post-meta-top">
+      
+        <span class="tag tag-type tag-article">article</span>
+      
+      
+        
+          <span class="tag tag-subject">security</span>
+        
+          <span class="tag tag-subject">education</span>
+        
+      
+    </div>
+
+    <h1 class="post-title">How Hardware Gets Hacked (Part 3): Adopting the Attacker Mindset</h1>
+
+    
+      <p class="post-excerpt">Part 3 is about reconnaissance: a four-step framework for building an attacker's understanding of the target before attempting any exploit.
+</p>
+    
+
+    <div class="post-meta-bottom">
+      <time datetime="2026-04-20T00:00:00-05:00">
+        April 20, 2026
+      </time>
+      
+    </div>
+  </header>
+
+  
+
+  <div class="post-content">
+    <p><em>Originally published on <a href="https://www.digikey.com/en/maker/blogs/2026/how-hardware-gets-hacked-part-3-adopting-the-attacker-mindset">Maker.io (DigiKey)</a>.</em></p>
+
+<p><img src="/assets/hhghp3/vince.png" alt="Vince, the attacker persona used throughout the HHGH series" /></p>
+
+<p>Before attempting an attack, a good attacker does reconnaissance. Part 3 structures that reconnaissance into four objectives: identify the payoffs (what flags exist and where they’re stored), review the overall design for known weaknesses, enumerate every attacker-controlled input into the system, and catalog potential vulnerabilities — specifically distinguishing known bugs from “interesting oddities,” things in the code that are technically correct but fragile or surprising.</p>
+
+<p>The article applies this framework to the insecure example’s source code, surfaces a list of bugs and oddities, and explains where an attacker looks for additional design information: manufacturer datasheets and errata, maintenance and repair documentation, published reverse-engineering work, and the device’s own response to probing. The resulting lists of inputs and vulnerabilities become the foundation for the prioritized attack matrix in Part 4.</p>
+
+<p><a href="https://www.digikey.com/en/maker/blogs/2026/how-hardware-gets-hacked-part-3-adopting-the-attacker-mindset">Read the full article →</a></p>
+
+  </div>
+
+  <footer class="post-footer">
+    <a href="/works.html" class="back-link">← Back to Works</a>
+
+    
+    <div class="post-tags">
+      
+        <a href="/works.html?type=article" class="tag tag-type tag-article">article</a>
+      
+      
+        <a href="/works.html?subject=security" class="tag tag-subject">security</a>
+      
+        <a href="/works.html?subject=education" class="tag tag-subject">education</a>
+      
+    </div>
+    
+  </footer>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-col">
+        <img src="/assets/images/logo_full.png" alt="Mindstorms Engineering, LLC" class="footer-logo">
+      </div>
+      <div class="footer-col">
+        <p class="footer-label">Connect</p>
+        <a href="https://www.linkedin.com/in/nathancharlesjones">LinkedIn</a>
+        <a href="https://github.com/nathancharlesjones">GitHub</a>
+        <a href="https://www.tindie.com/stores/0xc0decafe/">Tindie</a>
+        <a href="/feed.xml">RSS Feed</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-label">Contact</p>
+        <a href="mailto:contact@mindstormsengineering.com">contact@mindstormsengineering.com</a>
+        <a href="tel:6154884789">615.488.4789</a>
+        <p class="footer-hours">8:30am – 2:30pm CT, Monday – Friday</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Mindstorms Engineering, LLC. All rights reserved.</span>
+    </div>
+  </footer>
+
+  <script src="/assets/js/main.js"></script>
+
+</body>
+</html>

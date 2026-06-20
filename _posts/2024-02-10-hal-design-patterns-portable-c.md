@@ -1,4 +1,5 @@
 ---
+published: false
 layout: post
 title: "HAL Design Patterns for Portable Embedded C"
 date: 2024-02-10

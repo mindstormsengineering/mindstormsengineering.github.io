@@ -1,225 +1,92 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.4.1">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2026-06-19T11:58:58-05:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">Mindstorms Engineering, LLC</title><subtitle>Consulting, education, and technical writing at the intersection of hardware, firmware, and real-world constraints.
-</subtitle><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><entry><title type="html">AES-Based Challenge-Response Authentication for Key Fob Systems</title><link href="http://localhost:4000/works/2024/06/15/aes-challenge-response-keyfob/" rel="alternate" type="text/html" title="AES-Based Challenge-Response Authentication for Key Fob Systems" /><published>2024-06-15T00:00:00-05:00</published><updated>2024-06-15T00:00:00-05:00</updated><id>http://localhost:4000/works/2024/06/15/aes-challenge-response-keyfob</id><content type="html" xml:base="http://localhost:4000/works/2024/06/15/aes-challenge-response-keyfob/"><![CDATA[<p>Embedded security is often treated as an afterthought—a thin veneer of
-protection bolted onto an otherwise-complete design. This post takes the
-opposite approach: we start from an attacker’s perspective and build a key fob
-authentication system that remains correct under adversarial conditions,
-including physical attacks like voltage glitching.</p>
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.4.1">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2026-06-20T11:23:03-05:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">Mindstorms Engineering, LLC</title><subtitle>Consulting, education, and technical writing at the intersection of hardware, firmware, and real-world constraints.
+</subtitle><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><entry><title type="html">How Hardware Gets Hacked (Part 4): Memory Protections</title><link href="http://localhost:4000/works/2026/05/20/how-hardware-gets-hacked-part-4-memory-protections/" rel="alternate" type="text/html" title="How Hardware Gets Hacked (Part 4): Memory Protections" /><published>2026-05-20T00:00:00-05:00</published><updated>2026-05-20T00:00:00-05:00</updated><id>http://localhost:4000/works/2026/05/20/how-hardware-gets-hacked-part-4-memory-protections</id><content type="html" xml:base="http://localhost:4000/works/2026/05/20/how-hardware-gets-hacked-part-4-memory-protections/"><![CDATA[<p><em>Originally published on <a href="https://www.digikey.com/en/maker/blogs/2026/how-hardware-gets-hacked-part-4-memory-protections">Maker.io (DigiKey)</a>.</em></p>
 
-<h2 id="the-threat-model">The Threat Model</h2>
+<p><img src="/assets/hhghp4/hhghp4-read-debug-port.png" alt="Threat model for Attack #1: reading flags over an unlocked debug port" /></p>
 
-<p>Before writing a single line of code, we need to understand what we’re
-defending against. For a key fob system, the relevant threat categories are:</p>
+<p>Part 4 of “How Hardware Gets Hacked” works through the first complete attack/defense cycle. The attack: connect a debug adapter to the JTAG/SWD pins, start a GDB server, and read flags directly from flash or EEPROM — all of them, in seconds, on any unprotected device. If the secrets aren’t at a known address, the article covers finding them systematically: MAP file first, then a full flash dump scanned with <code class="language-plaintext highlighter-rouge">strings</code>/<code class="language-plaintext highlighter-rouge">grep</code>, then Ghidra as a last resort.</p>
 
-<ul>
-  <li><strong>Replay attacks</strong> — capturing a valid authentication token and retransmitting it</li>
-  <li><strong>Brute-force attacks</strong> — exhaustively trying possible secrets</li>
-  <li><strong>Physical fault injection</strong> — using voltage glitches to skip security checks</li>
-</ul>
+<p>The defense is chip-specific: RDP Level 1 on the STM32 (faults any debug flash access), DBG bits of BOOTCFG on the TM4C (disables the port outright). One notable pitfall: remapping debug pins to GPIO in firmware does <em>not</em> work — a debug adapter can reset the chip and connect before the remap runs. The unlock procedure on both chips triggers a mass erase, so an attacker can’t simply unlock a locked device to extract the secrets.</p>
 
-<p>A naive <code class="language-plaintext highlighter-rouge">if (key == secret) unlock();</code> pattern is vulnerable to all three.</p>
+<p>The article introduces <strong>attack-driven development (ADD)</strong> as an organizing principle: only implement a defense when you can demonstrate the attack it prevents. The threat model at the end formalizes this — attacker profile, secrets at stake, attacks in and out of scope (SEM decapping is real but out of reach for a student competition), and the first committed defense.</p>
 
-<h2 id="challenge-response-authentication">Challenge-Response Authentication</h2>
+<p>The two rules to walk away with: <strong>never distribute plaintext binaries containing secrets</strong>, and <strong>never ship with the debug port unlocked</strong>.</p>
 
-<p>The standard mitigation for replay attacks is to require the authenticator to
-prove knowledge of a secret <em>in response to a fresh challenge</em>, rather than
-presenting a static token.</p>
+<p><a href="https://www.digikey.com/en/maker/blogs/2026/how-hardware-gets-hacked-part-4-memory-protections">Read the full article →</a></p>]]></content><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><summary type="html"><![CDATA[The first complete attack/defense cycle in this eCTF series: reading device secrets over an unlocked debug port, disabling it, and formalizing what was learned as a threat model — including what's explicitly out of scope.]]></summary></entry><entry><title type="html">How Hardware Gets Hacked (Part 3): Adopting the Attacker Mindset</title><link href="http://localhost:4000/works/2026/04/20/how-hardware-gets-hacked-part-3-adopting-the-attacker-mindset/" rel="alternate" type="text/html" title="How Hardware Gets Hacked (Part 3): Adopting the Attacker Mindset" /><published>2026-04-20T00:00:00-05:00</published><updated>2026-04-20T00:00:00-05:00</updated><id>http://localhost:4000/works/2026/04/20/how-hardware-gets-hacked-part-3-adopting-the-attacker-mindset</id><content type="html" xml:base="http://localhost:4000/works/2026/04/20/how-hardware-gets-hacked-part-3-adopting-the-attacker-mindset/"><![CDATA[<p><em>Originally published on <a href="https://www.digikey.com/en/maker/blogs/2026/how-hardware-gets-hacked-part-3-adopting-the-attacker-mindset">Maker.io (DigiKey)</a>.</em></p>
 
-<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Pseudocode — see reference implementation for full details</span>
-<span class="kt">void</span> <span class="nf">authenticate</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
-    <span class="kt">uint8_t</span> <span class="n">challenge</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
-    <span class="kt">uint8_t</span> <span class="n">response</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
-    <span class="kt">uint8_t</span> <span class="n">expected</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+<p><img src="/assets/hhghp3/vince.png" alt="Vince, the attacker persona used throughout the HHGH series" /></p>
 
-    <span class="n">generate_random</span><span class="p">(</span><span class="n">challenge</span><span class="p">,</span> <span class="mi">16</span><span class="p">);</span>
-    <span class="n">transmit</span><span class="p">(</span><span class="n">challenge</span><span class="p">,</span> <span class="mi">16</span><span class="p">);</span>
-    <span class="n">receive</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="mi">16</span><span class="p">);</span>
+<p>Before attempting an attack, a good attacker does reconnaissance. Part 3 structures that reconnaissance into four objectives: identify the payoffs (what flags exist and where they’re stored), review the overall design for known weaknesses, enumerate every attacker-controlled input into the system, and catalog potential vulnerabilities — specifically distinguishing known bugs from “interesting oddities,” things in the code that are technically correct but fragile or surprising.</p>
 
-    <span class="n">aes_encrypt</span><span class="p">(</span><span class="n">challenge</span><span class="p">,</span> <span class="n">SECRET_KEY</span><span class="p">,</span> <span class="n">expected</span><span class="p">);</span>
+<p>The article applies this framework to the insecure example’s source code, surfaces a list of bugs and oddities, and explains where an attacker looks for additional design information: manufacturer datasheets and errata, maintenance and repair documentation, published reverse-engineering work, and the device’s own response to probing. The resulting lists of inputs and vulnerabilities become the foundation for the prioritized attack matrix in Part 4.</p>
 
-    <span class="k">if</span> <span class="p">(</span><span class="n">constant_time_compare</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">expected</span><span class="p">,</span> <span class="mi">16</span><span class="p">))</span> <span class="p">{</span>
-        <span class="n">unlock</span><span class="p">();</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div></div>
+<p><a href="https://www.digikey.com/en/maker/blogs/2026/how-hardware-gets-hacked-part-3-adopting-the-attacker-mindset">Read the full article →</a></p>]]></content><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><summary type="html"><![CDATA[Part 3 is about reconnaissance: a four-step framework for building an attacker's understanding of the target before attempting any exploit.]]></summary></entry><entry><title type="html">How Hardware Gets Hacked (Part 2): On-boarding</title><link href="http://localhost:4000/works/2026/03/18/how-hardware-gets-hacked-part-2-on-boarding/" rel="alternate" type="text/html" title="How Hardware Gets Hacked (Part 2): On-boarding" /><published>2026-03-18T00:00:00-05:00</published><updated>2026-03-18T00:00:00-05:00</updated><id>http://localhost:4000/works/2026/03/18/how-hardware-gets-hacked-part-2-on-boarding</id><content type="html" xml:base="http://localhost:4000/works/2026/03/18/how-hardware-gets-hacked-part-2-on-boarding/"><![CDATA[<p><em>Originally published on <a href="https://www.digikey.com/en/maker/blogs/2026/how-hardware-gets-hacked-part-2-on-boarding">Maker.io (DigiKey)</a>.</em></p>
 
-<p>The key details:</p>
+<p><img src="/assets/hhghp2/hardware_testing.png" alt="Hardware testing setup for the HHGH project" /></p>
 
-<ol>
-  <li><strong><code class="language-plaintext highlighter-rouge">generate_random</code></strong> must produce cryptographically unpredictable values — not
-a simple <code class="language-plaintext highlighter-rouge">rand()</code> seeded from uptime.</li>
-  <li><strong><code class="language-plaintext highlighter-rouge">constant_time_compare</code></strong> prevents timing side-channels that could leak
-information about where a comparison fails.</li>
-  <li>The secret key lives in protected flash, never transmitted.</li>
-</ol>
+<p>The 2023 MITRE eCTF required specific hardware and MITRE’s own bootloader. Part 2 re-builds the same car-and-key-fob project in a form you can run on your own development boards, structured as four progressive builds: a pure host simulation (no hardware required), the simulation extended with interactive test commands, a build targeting real STM32 and TM4C hardware, and a build with an automated test suite for black-box testing.</p>
 
-<h2 id="fault-resistant-design">Fault-Resistant Design</h2>
+<p>The more security-relevant half of the article examines the secret-generation pipeline. Two generation steps occur: a global step before any device is built (the right place for system-wide AES keys) and a per-device step when each car or fob is compiled, producing <code class="language-plaintext highlighter-rouge">secrets.h</code> and <code class="language-plaintext highlighter-rouge">car_secrets.json</code>. Competition rules give attackers full access to source code and build scripts but not to build artifacts — they can read <code class="language-plaintext highlighter-rouge">car_gen_secret.py</code> but not the secrets it generates. Whether they can infer the contents of <code class="language-plaintext highlighter-rouge">secrets.h</code> from the visible script alone is a question worth asking before the attack phase begins.</p>
 
-<p>Voltage glitching can cause individual instructions to be skipped or corrupted.
-A common attack pattern against authentication code is to glitch past the
-comparison, causing the branch to always succeed.</p>
+<p><a href="https://www.digikey.com/en/maker/blogs/2026/how-hardware-gets-hacked-part-2-on-boarding">Read the full article →</a></p>]]></content><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><summary type="html"><![CDATA[Part 2 rebuilds the eCTF project in four progressive builds — simulator, test commands, real hardware, automated tests — and examines what information attackers can and cannot see during the build process.]]></summary></entry><entry><title type="html">Thread-safe printf Debugging (Part 2)</title><link href="http://localhost:4000/works/2026/03/04/thread-safe-printf-debugging-part-2/" rel="alternate" type="text/html" title="Thread-safe printf Debugging (Part 2)" /><published>2026-03-04T00:00:00-06:00</published><updated>2026-03-04T00:00:00-06:00</updated><id>http://localhost:4000/works/2026/03/04/thread-safe-printf-debugging-part-2</id><content type="html" xml:base="http://localhost:4000/works/2026/03/04/thread-safe-printf-debugging-part-2/"><![CDATA[<p><em>Originally published on <a href="https://www.digikey.com/en/maker/tutorials/2026/thread-safe-printf-debugging-part-2">Maker.io (DigiKey)</a>.</em></p>
 
-<p>The mitigation is redundancy and inversion checks:</p>
+<p><img src="/assets/thread_safe_p2/threadSafe_02_garbled.png" alt="Garbled output caused by a thread-safety race condition" /></p>
 
-<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Fault-resistant comparison pattern</span>
-<span class="n">bool</span> <span class="nf">secure_compare</span><span class="p">(</span><span class="k">const</span> <span class="kt">uint8_t</span> <span class="o">*</span><span class="n">a</span><span class="p">,</span> <span class="k">const</span> <span class="kt">uint8_t</span> <span class="o">*</span><span class="n">b</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
-    <span class="k">volatile</span> <span class="kt">uint8_t</span> <span class="n">diff</span>     <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-    <span class="k">volatile</span> <span class="kt">uint8_t</span> <span class="n">inv_diff</span> <span class="o">=</span> <span class="mh">0xFF</span><span class="p">;</span>
+<p>The double buffer from Part 1 has three race conditions of its own. Part 2 works through each using a framework of three critical-section types: code that must be atomic (indivisible), code that can’t run until after a specific event, and code that must run immediately before one. Each maps to one or more of three protective tools: global interrupt disable, a mutex, or C++ atomics — with the constraint that mutexes can’t be released from ISRs.</p>
 
-    <span class="k">for</span> <span class="p">(</span><span class="kt">size_t</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
-        <span class="n">diff</span>     <span class="o">|=</span> <span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">^</span> <span class="n">b</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
-        <span class="n">inv_diff</span> <span class="o">&amp;=</span> <span class="o">~</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">^</span> <span class="n">b</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
-    <span class="p">}</span>
+<p>Beyond the buffer itself, making the full logging path thread-safe also means ensuring that <code class="language-plaintext highlighter-rouge">snprintf</code> is re-entrant (which requires <code class="language-plaintext highlighter-rouge">&lt;reent.h&gt;</code> in most embedded C libraries), that <code class="language-plaintext highlighter-rouge">malloc</code> is protected if used, and that every other function in the call chain is thread-safe. The conclusion is that a properly thread-safe debug logger is a more involved undertaking than it first appears.</p>
 
-    <span class="c1">// Both must agree — a glitch that clears diff won't also set inv_diff</span>
-    <span class="k">return</span> <span class="p">(</span><span class="n">diff</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">inv_diff</span> <span class="o">==</span> <span class="mh">0xFF</span><span class="p">);</span>
-<span class="p">}</span>
-</code></pre></div></div>
+<p><a href="https://www.digikey.com/en/maker/tutorials/2026/thread-safe-printf-debugging-part-2">Read the full article →</a></p>]]></content><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><summary type="html"><![CDATA[Part 2 works through the race conditions in the double-buffer scheme from Part 1, categorizes three types of critical sections, and applies three tools to protect them — then notes that even the C library itself may not be thread-safe.]]></summary></entry><entry><title type="html">Thread-safe printf Debugging (Part 1)</title><link href="http://localhost:4000/works/2026/03/02/thread-safe-printf-debugging-part-1/" rel="alternate" type="text/html" title="Thread-safe printf Debugging (Part 1)" /><published>2026-03-02T00:00:00-06:00</published><updated>2026-03-02T00:00:00-06:00</updated><id>http://localhost:4000/works/2026/03/02/thread-safe-printf-debugging-part-1</id><content type="html" xml:base="http://localhost:4000/works/2026/03/02/thread-safe-printf-debugging-part-1/"><![CDATA[<p><em>Originally published on <a href="https://www.digikey.com/en/maker/tutorials/2026/thread-safe-printf-debugging-part-1">Maker.io (DigiKey)</a>.</em></p>
 
-<h2 id="what-this-doesnt-cover">What This Doesn’t Cover</h2>
+<p><img src="/assets/thread_safe_p1/disable_interrupts.png" alt="Interrupt disable protecting a printf critical section" /></p>
 
-<p>This post focuses on the authentication handshake. A production system also
-needs secure key provisioning, secure boot, and a well-thought-out key
-hierarchy. Those are topics for future articles.</p>
+<p>Two RTOS threads calling <code class="language-plaintext highlighter-rouge">printf</code> at the same time will interleave their characters. Two ISRs doing the same can corrupt UART peripheral state. The naive fix — wrapping every printf in a critical section — works but blocks all other interrupts for as long as it takes to format and transmit the message, which at 3 Mbaud and 22 characters is still tens of microseconds.</p>
 
-<p>See the attached reference implementation for a complete, buildable example
-targeting the STM32F4.</p>]]></content><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><summary type="html"><![CDATA[A walkthrough of implementing AES-based challenge-response authentication on a resource-constrained microcontroller, with fault-resistant design to withstand voltage glitching attacks.]]></summary></entry><entry><title type="html">HAL Design Patterns for Portable Embedded C</title><link href="http://localhost:4000/works/2024/02/10/hal-design-patterns-portable-c/" rel="alternate" type="text/html" title="HAL Design Patterns for Portable Embedded C" /><published>2024-02-10T00:00:00-06:00</published><updated>2024-02-10T00:00:00-06:00</updated><id>http://localhost:4000/works/2024/02/10/hal-design-patterns-portable-c</id><content type="html" xml:base="http://localhost:4000/works/2024/02/10/hal-design-patterns-portable-c/"><![CDATA[<p>One of the hardest things to teach in embedded systems is <em>portability</em>. Not
-because the concept is difficult, but because almost every example you find in
-the wild is deeply coupled to a specific chip family.</p>
+<p>Three progressively better approaches: disable interrupts around the entire call (simple, correct, blocks everything); use an RTOS mutex (correct for thread-to-thread communication, but mutexes can’t be acquired from ISRs); use a double buffer that separates formatting from transmission so the critical section only covers the memory copy, not the UART write. The double buffer is the most capable solution but introduces its own race conditions — which Part 2 addresses.</p>
 
-<p>This tutorial walks through a HAL design I’ve refined over several years of
-teaching and consulting work. The goal: application logic that compiles and
-runs identically on an STM32, a TM4C, or a native host for unit testing.</p>
+<p><a href="https://www.digikey.com/en/maker/tutorials/2026/thread-safe-printf-debugging-part-1">Read the full article →</a></p>]]></content><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><summary type="html"><![CDATA[Naive printf calls from ISRs or RTOS threads produce garbled output or worse. Part 1 works through three solutions — disabling interrupts, a mutex, and a double buffer — each better than the last but with its own caveats.]]></summary></entry><entry><title type="html">The Best MCU Peripheral You’ve Never Heard Of</title><link href="http://localhost:4000/works/2026/02/04/the-best-mcu-peripheral-youve-never-heard-of/" rel="alternate" type="text/html" title="The Best MCU Peripheral You’ve Never Heard Of" /><published>2026-02-04T00:00:00-06:00</published><updated>2026-02-04T00:00:00-06:00</updated><id>http://localhost:4000/works/2026/02/04/the-best-mcu-peripheral-youve-never-heard-of</id><content type="html" xml:base="http://localhost:4000/works/2026/02/04/the-best-mcu-peripheral-youve-never-heard-of/"><![CDATA[<p><em>Originally published on <a href="https://www.digikey.com/en/maker/blogs/2026/the-best-mcu-peripheral-youve-never-heard-of">Maker.io (DigiKey)</a>.</em></p>
 
-<h2 id="the-core-idea-program-to-interfaces">The Core Idea: Program to Interfaces</h2>
+<p><img src="/assets/best_mcu_peripheral/bestPeripheral_00_clb.png" alt="Block diagram of Microchip's Configurable Logic Block" /></p>
 
-<p>In C, we don’t have classes, but we have function pointers and structs. A HAL
-can be expressed as a struct of function pointers:</p>
+<p>Microchip’s Configurable Logic Block (CLB), found on PIC16F131xx devices, puts a small set of programmable logic elements — AND gates, multiplexers, D and JK flip-flops — inside the microcontroller itself, wired to internal signal sources. The result is logic that runs at hardware speed without CPU involvement and without adding an external CPLD or FPGA to the BOM.</p>
 
-<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// hal/uart.h</span>
-<span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
-    <span class="kt">void</span>     <span class="p">(</span><span class="o">*</span><span class="n">init</span><span class="p">)(</span><span class="kt">uint32_t</span> <span class="n">baud_rate</span><span class="p">);</span>
-    <span class="kt">void</span>     <span class="p">(</span><span class="o">*</span><span class="n">send_byte</span><span class="p">)(</span><span class="kt">uint8_t</span> <span class="n">byte</span><span class="p">);</span>
-    <span class="kt">int</span>      <span class="p">(</span><span class="o">*</span><span class="n">recv_byte</span><span class="p">)(</span><span class="kt">uint8_t</span> <span class="o">*</span><span class="n">out</span><span class="p">,</span> <span class="kt">uint32_t</span> <span class="n">timeout_ms</span><span class="p">);</span>
-    <span class="n">bool</span>     <span class="p">(</span><span class="o">*</span><span class="n">tx_ready</span><span class="p">)(</span><span class="kt">void</span><span class="p">);</span>
-<span class="p">}</span> <span class="n">uart_hal_t</span><span class="p">;</span>
-</code></pre></div></div>
+<p>The article walks through a range of applications: Manchester encoding for custom serial protocols, an emergency shut-off FSM that reacts faster than any ISR, a 16-bit DAC built from PWM signals, and motor control safety logic (hall sensor decoding, deadband insertion, e-stop handling). For each use case the CLB replaces what would otherwise be tight interrupt code or external components, offloading the work entirely from the CPU.</p>
 
-<p>Application code takes a <code class="language-plaintext highlighter-rouge">const uart_hal_t *</code> and calls through the
-interface. It has no idea whether the underlying implementation uses STM32
-HAL, bare-register access, or a ring buffer backed by a POSIX pipe.</p>
+<p>For applications that outgrow the CLB’s handful of logic elements, the article surveys four larger alternatives — Cypress PSoC, TI C2000’s CLB, external FPGAs, and CPLDs — each offering significantly more capability at the cost of significantly more complexity.</p>
 
-<h2 id="platform-implementations">Platform Implementations</h2>
+<p><a href="https://www.digikey.com/en/maker/blogs/2026/the-best-mcu-peripheral-youve-never-heard-of">Read the full article →</a></p>]]></content><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><summary type="html"><![CDATA[Microchip's Configurable Logic Block gives you programmable digital logic inside your microcontroller — fast enough for hardware-speed tasks, flexible enough for Manchester encoding, safety FSMs, 16-bit DACs, and motor control.]]></summary></entry><entry><title type="html">Smaller printf Debugging</title><link href="http://localhost:4000/works/2026/01/26/smaller-printf-debugging/" rel="alternate" type="text/html" title="Smaller printf Debugging" /><published>2026-01-26T00:00:00-06:00</published><updated>2026-01-26T00:00:00-06:00</updated><id>http://localhost:4000/works/2026/01/26/smaller-printf-debugging</id><content type="html" xml:base="http://localhost:4000/works/2026/01/26/smaller-printf-debugging/"><![CDATA[<p><em>Originally published on <a href="https://www.digikey.com/en/maker/tutorials/2026/smaller-printf-debugging">Maker.io (DigiKey)</a>.</em></p>
 
-<p>For each target, you provide a concrete implementation:</p>
+<p><img src="/assets/smaller_printf/Smaller_26_speed-vs-size.png" alt="Message rate versus flash size for various printf implementations" /></p>
 
-<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// platform/stm32/uart_stm32.c</span>
-<span class="k">static</span> <span class="kt">void</span> <span class="nf">stm32_uart_init</span><span class="p">(</span><span class="kt">uint32_t</span> <span class="n">baud_rate</span><span class="p">)</span> <span class="p">{</span>
-    <span class="c1">// ... STM32 HAL calls ...</span>
-<span class="p">}</span>
+<p>On a microcontroller with 32 kB of flash, a single <code class="language-plaintext highlighter-rouge">printf</code> call costs 4.23 kB — over 13% of total flash. The article first surveys what’s already working in your favor by default (newlib-nano instead of the full C library, <code class="language-plaintext highlighter-rouge">-Wl,--gc-sections</code> to discard unused code, the STM32 LL library over the HAL, no floating-point support in printf), then benchmarks explicit alternatives.</p>
 
-<span class="k">const</span> <span class="n">uart_hal_t</span> <span class="n">uart_stm32</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="p">.</span><span class="n">init</span>      <span class="o">=</span> <span class="n">stm32_uart_init</span><span class="p">,</span>
-    <span class="p">.</span><span class="n">send_byte</span> <span class="o">=</span> <span class="n">stm32_uart_send_byte</span><span class="p">,</span>
-    <span class="p">.</span><span class="n">recv_byte</span> <span class="o">=</span> <span class="n">stm32_uart_recv_byte</span><span class="p">,</span>
-    <span class="p">.</span><span class="n">tx_ready</span>  <span class="o">=</span> <span class="n">stm32_uart_tx_ready</span><span class="p">,</span>
-<span class="p">};</span>
-</code></pre></div></div>
+<p>Switching from <code class="language-plaintext highlighter-rouge">printf</code> to <code class="language-plaintext highlighter-rouge">snprintf</code> with a custom output function cuts the footprint to about 3 kB. Substituting mpaland’s lightweight snprintf implementation gets to around 2 kB. FlatBuffers drops it to about 1 kB. Bitproto, or a hand-rolled minimal serializer, can get debug messaging overhead under 200 bytes. Segger RTT is an honorable mention: not smaller than other options, but heap-free and with only about 1.3 kB of RAM overhead.</p>
 
-<h2 id="host-testing">Host Testing</h2>
+<p>The tradeoff is speed: the speed-versus-size chart makes it visible that smaller implementations generally send fewer messages per second — bitproto being the notable exception at both the smallest and fastest end.</p>
 
-<p>For the host, you implement the same interface using standard C:</p>
+<p><a href="https://www.digikey.com/en/maker/tutorials/2026/smaller-printf-debugging">Read the full article →</a></p>]]></content><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><summary type="html"><![CDATA[Printf adds over 4 kB of flash just for a single call. This article benchmarks a range of techniques for shrinking that footprint, from compiler flags already on by default to swapping in a 200-byte binary serialization library.]]></summary></entry><entry><title type="html">How Hardware Gets Hacked (Part 1)</title><link href="http://localhost:4000/works/2025/12/17/how-hardware-gets-hacked-part-1/" rel="alternate" type="text/html" title="How Hardware Gets Hacked (Part 1)" /><published>2025-12-17T00:00:00-06:00</published><updated>2025-12-17T00:00:00-06:00</updated><id>http://localhost:4000/works/2025/12/17/how-hardware-gets-hacked-part-1</id><content type="html" xml:base="http://localhost:4000/works/2025/12/17/how-hardware-gets-hacked-part-1/"><![CDATA[<p><em>Originally published on <a href="https://www.digikey.com/en/maker/blogs/2025/how-hardware-gets-hacked-part-1">Maker.io (DigiKey)</a>.</em></p>
 
-<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// platform/host/uart_host.c</span>
-<span class="k">static</span> <span class="kt">void</span> <span class="nf">host_uart_init</span><span class="p">(</span><span class="kt">uint32_t</span> <span class="n">baud_rate</span><span class="p">)</span> <span class="p">{</span>
-    <span class="c1">// No-op on host, or open a pty/socket</span>
-    <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">baud_rate</span><span class="p">;</span>
-<span class="p">}</span>
-<span class="c1">// ...</span>
-</code></pre></div></div>
+<p><img src="/assets/hhghp1/hacked1_01_features.png" alt="Feature summary of the HHGH car-and-key-fob target system" /></p>
 
-<p>Now your application’s unit tests can run with <code class="language-plaintext highlighter-rouge">gcc</code> on your development
-machine, with no hardware required.</p>
+<p>Hardware security is easier to learn by doing than by reading about it in the abstract. This series uses the 2023 MITRE Embedded Capture the Flag (eCTF) competition as the vehicle: a structured competition in which teams design and harden an embedded system, then spend weeks trying to extract flags — proof-of-exploitation tokens — from each other’s designs.</p>
 
-<h2 id="wiring-it-together">Wiring It Together</h2>
+<p>Part 1 introduces the target: a car and key fob system with four main operations — unlock car with a paired fob, pair a new fob to a car, enable an optional feature, and package a feature onto a fob. Each operation has one or more flags that an attacker captures if they trigger it without authorization. The article walks through the insecure example MITRE provided for the 2023 competition, examining each operation’s code at the source level, and sets up the rest of the series: iteratively attack the system, implement defenses, attack the updated system, and repeat.</p>
 
-<p>At startup (main.c for each target), pass the right implementation:</p>
+<p><a href="https://www.digikey.com/en/maker/blogs/2025/how-hardware-gets-hacked-part-1">Read the full article →</a></p>]]></content><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><summary type="html"><![CDATA[Introduction to the series: the MITRE Embedded Capture the Flag competition, the insecure car-and-key-fob system that serves as the target, and what flags are at stake across its four main operations.]]></summary></entry><entry><title type="html">All Your Bytes are Belong to Us</title><link href="http://localhost:4000/works/2025/12/01/all-your-bytes-are-belong-to-us/" rel="alternate" type="text/html" title="All Your Bytes are Belong to Us" /><published>2025-12-01T00:00:00-06:00</published><updated>2025-12-01T00:00:00-06:00</updated><id>http://localhost:4000/works/2025/12/01/all-your-bytes-are-belong-to-us</id><content type="html" xml:base="http://localhost:4000/works/2025/12/01/all-your-bytes-are-belong-to-us/"><![CDATA[<p><em>Originally published on <a href="https://www.digikey.com/en/maker/blogs/2025/all-your-bytes-are-belong-to-us">Maker.io (DigiKey)</a>.</em></p>
 
-<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// main_stm32.c</span>
-<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
-    <span class="n">app_init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_stm32</span><span class="p">);</span>
-    <span class="k">while</span> <span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span> <span class="n">app_run</span><span class="p">();</span> <span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div></div>
+<p><img src="/assets/all_your_bits/spectrum.png" alt="Hardware attack spectrum from passive reconnaissance to IC modification" /></p>
 
-<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// test_app.c</span>
-<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
-    <span class="n">app_init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_host</span><span class="p">);</span>
-    <span class="c1">// run tests ...</span>
-<span class="p">}</span>
-</code></pre></div></div>
+<p>Network security gets most of the attention, but every electronic device that someone can physically touch is also susceptible to hardware attacks — including devices with no wireless radios at all. This article surveys what those attacks look like, organized into six ascending levels of cost, skill, and invasiveness.</p>
 
-<h2 id="takeaways">Takeaways</h2>
+<p>Level 1 is reconnaissance: reading datasheets, finding reverse-engineering projects, studying the PCB. Level 2 is snooping: listening on UART, SPI, JTAG, or I2C with a logic analyzer. Level 3 is PCB modification: cutting traces, adding wires, replacing components. Level 4 is side-channel attacks: inferring secrets from timing, power consumption, or electromagnetic emissions — no physical modification required. Level 5 is fault injection: inducing computational errors through voltage glitching, EMFI, or lasers to skip instructions or corrupt memory. Level 6 is IC decapping: removing the chip’s packaging to expose the silicon die, enabling photonic side-channel analysis, optical fault injection, or direct circuit modification with a focused ion beam (FIB).</p>
 
-<ul>
-  <li>Function-pointer structs give you interface-based design in C</li>
-  <li>Keep platform-specific code behind the interface boundary</li>
-  <li>Build and test application logic on the host first — it’s much faster</li>
-</ul>
+<p>The takeaway isn’t that all devices need to defend against all six levels — it’s that the right level of protection depends on what you’re protecting and who’s likely to attack it. Countermeasures exist for every level; a device only needs to be secure enough for its actual threat model.</p>
 
-<p>This pattern scales well to GPIO, SPI, I2C, timers, and any other peripheral.
-Once you’ve written a few HAL implementations, the pattern becomes second
-nature.</p>]]></content><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><summary type="html"><![CDATA[How to structure a Hardware Abstraction Layer so that application code doesn't care which microcontroller it's running on — and how to use dependency injection to make that code testable on a host machine.]]></summary></entry><entry><title type="html">Getting Started with FPGA Design: A Practical Introduction</title><link href="http://localhost:4000/works/2023/11/01/fpga-intro-talk/" rel="alternate" type="text/html" title="Getting Started with FPGA Design: A Practical Introduction" /><published>2023-11-01T00:00:00-05:00</published><updated>2023-11-01T00:00:00-05:00</updated><id>http://localhost:4000/works/2023/11/01/fpga-intro-talk</id><content type="html" xml:base="http://localhost:4000/works/2023/11/01/fpga-intro-talk/"><![CDATA[<p><em>These are the notes from a talk given at [your venue here] in November 2023.</em></p>
+<p><a href="https://www.digikey.com/en/maker/blogs/2025/all-your-bytes-are-belong-to-us">Read the full article →</a></p>]]></content><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><summary type="html"><![CDATA[A survey of hardware attack techniques organized as six levels of cost and invasiveness — from researching a device online to decapping its IC and editing the silicon with a focused ion beam.]]></summary></entry><entry><title type="html">Faster printf Debugging (Part 3)</title><link href="http://localhost:4000/works/2025/10/27/faster-printf-debugging-part-3/" rel="alternate" type="text/html" title="Faster printf Debugging (Part 3)" /><published>2025-10-27T00:00:00-05:00</published><updated>2025-10-27T00:00:00-05:00</updated><id>http://localhost:4000/works/2025/10/27/faster-printf-debugging-part-3</id><content type="html" xml:base="http://localhost:4000/works/2025/10/27/faster-printf-debugging-part-3/"><![CDATA[<p><em>Originally published on <a href="https://www.digikey.com/en/maker/tutorials/2025/faster-printf-debugging-part-3">Maker.io (DigiKey)</a>.</em></p>
 
-<p>FPGAs have a reputation for being difficult to learn. Some of that reputation
-is deserved — the tooling can be rough, and “thinking in hardware” is a genuine
-mental shift. But the fundamentals are more approachable than they appear.</p>
+<p><img src="/assets/faster_printf_p3/summary.png" alt="Full summary chart of all printf speed optimizations across all three articles" /></p>
 
-<h2 id="why-fpgas">Why FPGAs?</h2>
+<p>The bottleneck at the end of Part 2 was no longer the UART or the processor — it was the text formatting. A “Value of counter: %03d\n” message is 22 characters; a binary-serialized equivalent can fit in 7 bytes. Part 3 benchmarks three serialization libraries over a buffered USB connection: MessagePack (38.9k msg/sec, 26.9 kB flash), FlatBuffers (~36k msg/sec at 75.9% CPU utilization, 18.1 kB flash), and bitproto (117.8k msg/sec, 16.6 kB flash). A hand-rolled minimal sprintf lands at 14.2k msg/sec with just 4.3 kB of flash.</p>
 
-<p>The short version: FPGAs let you implement custom digital hardware without
-committing to a fabrication run. You describe logic, synthesize it, and deploy
-to a chip that reconfigures itself to match your description.</p>
+<p>The full three-article summary chart puts it all in context: 142 msg/sec at the original baseline versus up to 117.8k msg/sec with bitproto. The primary tradeoff at the binary serialization tier is portability and human readability — you’ll need a deserializer on the host and your logs won’t be grep-friendly.</p>
 
-<p>The use cases in embedded systems are mostly about performance and
-parallelism — things a microcontroller processes sequentially, an FPGA can
-handle in parallel, with deterministic timing.</p>
-
-<h2 id="rtl-thinking">RTL Thinking</h2>
-
-<p>The key mental model shift is this: you’re not writing instructions that
-execute one at a time. You’re describing <em>circuits</em> — logic that exists
-simultaneously and reacts to signals.</p>
-
-<p>A simple example in VHDL:</p>
-
-<div class="language-vhdl highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">-- A D flip-flop with synchronous reset</span>
-<span class="k">process</span><span class="p">(</span><span class="n">clk</span><span class="p">)</span>
-<span class="k">begin</span>
-    <span class="k">if</span> <span class="n">rising_edge</span><span class="p">(</span><span class="n">clk</span><span class="p">)</span> <span class="k">then</span>
-        <span class="k">if</span> <span class="n">reset</span> <span class="o">=</span> <span class="sc">'1'</span> <span class="k">then</span>
-            <span class="n">q</span> <span class="o">&lt;=</span> <span class="sc">'0'</span><span class="p">;</span>
-        <span class="k">else</span>
-            <span class="n">q</span> <span class="o">&lt;=</span> <span class="n">d</span><span class="p">;</span>
-        <span class="k">end</span> <span class="k">if</span><span class="p">;</span>
-    <span class="k">end</span> <span class="k">if</span><span class="p">;</span>
-<span class="k">end</span> <span class="k">process</span><span class="p">;</span>
-</code></pre></div></div>
-
-<p>The <code class="language-plaintext highlighter-rouge">process</code> block here describes what happens on every clock edge. It doesn’t
-“run” — it <em>reacts</em>.</p>
-
-<h2 id="the-demo-a-simple-uart-tx">The Demo: A Simple UART TX</h2>
-
-<p>The talk included a live demo building a UART transmitter from scratch:
-baud rate generator → shift register → start/stop bit insertion → output pin.</p>
-
-<p>See the attached slides for the full walkthrough with timing diagrams.</p>
-
-<h2 id="resources-for-going-deeper">Resources for Going Deeper</h2>
-
-<ul>
-  <li><em>Digital Design and Computer Architecture</em> (Harris &amp; Harris) — best textbook
-in the field, covers both VHDL and SystemVerilog</li>
-  <li><a href="https://nandland.com">nandland.com</a> — practical FPGA tutorials</li>
-  <li>Lattice iCEstick — good low-cost dev board for getting started</li>
-</ul>]]></content><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><summary type="html"><![CDATA[Slides and notes from an introductory talk on FPGA development — covering why FPGAs matter, how to think about RTL design, and a hands-on demo building a simple UART in VHDL.]]></summary></entry></feed>
+<p><a href="https://www.digikey.com/en/maker/tutorials/2025/faster-printf-debugging-part-3">Read the full article →</a></p>]]></content><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><summary type="html"><![CDATA[Part 3 replaces human-readable text with binary serialization, reaching 38.9k–117.8k messages per second using MessagePack, FlatBuffers, and bitproto — a 274–829× improvement over the original baseline.]]></summary></entry></feed>

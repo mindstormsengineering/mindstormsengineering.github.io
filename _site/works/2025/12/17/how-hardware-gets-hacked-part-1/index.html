@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How Hardware Gets Hacked (Part 1) | Mindstorms Engineering, LLC</title>
+  <meta name="description" content="Introduction to the series: the MITRE Embedded Capture the Flag competition, the insecure car-and-key-fob system that serves as the target, and what flags ar...">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="icon" type="image/png" href="/assets/images/logo_small.png">
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>How Hardware Gets Hacked (Part 1) | Mindstorms Engineering, LLC</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="How Hardware Gets Hacked (Part 1)" />
+<meta name="author" content="Nathan Jones" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Introduction to the series: the MITRE Embedded Capture the Flag competition, the insecure car-and-key-fob system that serves as the target, and what flags are at stake across its four main operations." />
+<meta name="twitter:description" property="og:description" content="Introduction to the series: the MITRE Embedded Capture the Flag competition, the insecure car-and-key-fob system that serves as the target, and what flags are at stake across its four main operations." />
+<link rel="canonical" href="http://localhost:4000/works/2025/12/17/how-hardware-gets-hacked-part-1/" />
+<meta property="og:url" content="http://localhost:4000/works/2025/12/17/how-hardware-gets-hacked-part-1/" />
+<meta property="og:site_name" content="Mindstorms Engineering, LLC" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2025-12-17T00:00:00-06:00" />
+<meta property="article:modified_time" content="2025-12-17T00:00:00-06:00" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="How Hardware Gets Hacked (Part 1)" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Nathan Jones"},"dateModified":"2025-12-17T00:00:00-06:00","datePublished":"2025-12-17T00:00:00-06:00","description":"Introduction to the series: the MITRE Embedded Capture the Flag competition, the insecure car-and-key-fob system that serves as the target, and what flags are at stake across its four main operations.","headline":"How Hardware Gets Hacked (Part 1)","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/works/2025/12/17/how-hardware-gets-hacked-part-1/"},"url":"http://localhost:4000/works/2025/12/17/how-hardware-gets-hacked-part-1/"}</script>
+<!-- End Jekyll SEO tag -->
+
+  <link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Mindstorms Engineering, LLC" />
+</head>
+<body>
+
+  <nav class="site-nav" id="site-nav">
+    <a href="/" class="nav-brand">
+      <img src="/assets/images/logo_medium.png" alt="Mindstorms Engineering" class="nav-logo">
+    </a>
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleNav(this)">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="nav-links">
+      <a href="/#about">About</a>
+      <a href="/#services">Services</a>
+      <a href="/works.html">Works</a>
+      <a href="/#contact">Contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <article class="post-page">
+
+  <header class="post-header">
+    <div class="post-meta-top">
+      
+        <span class="tag tag-type tag-article">article</span>
+      
+      
+        
+          <span class="tag tag-subject">security</span>
+        
+          <span class="tag tag-subject">education</span>
+        
+      
+    </div>
+
+    <h1 class="post-title">How Hardware Gets Hacked (Part 1)</h1>
+
+    
+      <p class="post-excerpt">Introduction to the series: the MITRE Embedded Capture the Flag competition, the insecure car-and-key-fob system that serves as the target, and what flags are at stake across its four main operations.
+</p>
+    
+
+    <div class="post-meta-bottom">
+      <time datetime="2025-12-17T00:00:00-06:00">
+        December 17, 2025
+      </time>
+      
+    </div>
+  </header>
+
+  
+
+  <div class="post-content">
+    <p><em>Originally published on <a href="https://www.digikey.com/en/maker/blogs/2025/how-hardware-gets-hacked-part-1">Maker.io (DigiKey)</a>.</em></p>
+
+<p><img src="/assets/hhghp1/hacked1_01_features.png" alt="Feature summary of the HHGH car-and-key-fob target system" /></p>
+
+<p>Hardware security is easier to learn by doing than by reading about it in the abstract. This series uses the 2023 MITRE Embedded Capture the Flag (eCTF) competition as the vehicle: a structured competition in which teams design and harden an embedded system, then spend weeks trying to extract flags — proof-of-exploitation tokens — from each other’s designs.</p>
+
+<p>Part 1 introduces the target: a car and key fob system with four main operations — unlock car with a paired fob, pair a new fob to a car, enable an optional feature, and package a feature onto a fob. Each operation has one or more flags that an attacker captures if they trigger it without authorization. The article walks through the insecure example MITRE provided for the 2023 competition, examining each operation’s code at the source level, and sets up the rest of the series: iteratively attack the system, implement defenses, attack the updated system, and repeat.</p>
+
+<p><a href="https://www.digikey.com/en/maker/blogs/2025/how-hardware-gets-hacked-part-1">Read the full article →</a></p>
+
+  </div>
+
+  <footer class="post-footer">
+    <a href="/works.html" class="back-link">← Back to Works</a>
+
+    
+    <div class="post-tags">
+      
+        <a href="/works.html?type=article" class="tag tag-type tag-article">article</a>
+      
+      
+        <a href="/works.html?subject=security" class="tag tag-subject">security</a>
+      
+        <a href="/works.html?subject=education" class="tag tag-subject">education</a>
+      
+    </div>
+    
+  </footer>
+
+</article>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-col">
+        <img src="/assets/images/logo_full.png" alt="Mindstorms Engineering, LLC" class="footer-logo">
+      </div>
+      <div class="footer-col">
+        <p class="footer-label">Connect</p>
+        <a href="https://www.linkedin.com/in/nathancharlesjones">LinkedIn</a>
+        <a href="https://github.com/nathancharlesjones">GitHub</a>
+        <a href="https://www.tindie.com/stores/0xc0decafe/">Tindie</a>
+        <a href="/feed.xml">RSS Feed</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-label">Contact</p>
+        <a href="mailto:contact@mindstormsengineering.com">contact@mindstormsengineering.com</a>
+        <a href="tel:6154884789">615.488.4789</a>
+        <p class="footer-hours">8:30am – 2:30pm CT, Monday – Friday</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Mindstorms Engineering, LLC. All rights reserved.</span>
+    </div>
+  </footer>
+
+  <script src="/assets/js/main.js"></script>
+
+</body>
+</html>
