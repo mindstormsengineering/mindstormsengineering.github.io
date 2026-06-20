@@ -1,0 +1,71 @@
+---
+layout: default
+---
+
+<article class="post-page">
+
+  <header class="post-header">
+    <div class="post-meta-top">
+      {% if page.type %}
+        <span class="tag tag-type tag-{{ page.type }}">{{ page.type }}</span>
+      {% endif %}
+      {% if page.subjects %}
+        {% for subject in page.subjects %}
+          <span class="tag tag-subject">{{ subject }}</span>
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    <h1 class="post-title">{{ page.title }}</h1>
+
+    {% if page.excerpt and page.excerpt != "" %}
+      <p class="post-excerpt">{{ page.excerpt }}</p>
+    {% endif %}
+
+    <div class="post-meta-bottom">
+      <time datetime="{{ page.date | date_to_xmlschema }}">
+        {{ page.date | date: "%B %-d, %Y" }}
+      </time>
+      {% if page.author %}
+        <span class="post-author">by {{ page.author }}</span>
+      {% endif %}
+    </div>
+  </header>
+
+  {% if page.documents %}
+  <aside class="post-documents">
+    <h3 class="documents-label">Attached Documents</h3>
+    <ul class="documents-list">
+      {% for doc in page.documents %}
+        <li>
+          <a href="{{ doc.url | relative_url }}" class="document-link" {% if doc.description %}title="{{ doc.description }}"{% endif %}>
+            <span class="doc-icon">⬇</span>
+            <span class="doc-title">{{ doc.title }}</span>
+            {% if doc.type %}<span class="doc-type">{{ doc.type | upcase }}</span>{% endif %}
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </aside>
+  {% endif %}
+
+  <div class="post-content">
+    {{ content }}
+  </div>
+
+  <footer class="post-footer">
+    <a href="{{ '/works.html' | relative_url }}" class="back-link">← Back to Works</a>
+
+    {% if page.subjects or page.type %}
+    <div class="post-tags">
+      {% if page.type %}
+        <a href="{{ '/works.html' | relative_url }}?type={{ page.type }}" class="tag tag-type tag-{{ page.type }}">{{ page.type }}</a>
+      {% endif %}
+      {% for subject in page.subjects %}
+        <a href="{{ '/works.html' | relative_url }}?subject={{ subject | downcase | replace: ' ', '-' }}" class="tag tag-subject">{{ subject }}</a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </footer>
+
+</article>

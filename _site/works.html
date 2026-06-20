@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Works | Mindstorms Engineering, LLC</title>
+  <meta name="description" content="Consulting, education, and technical writing at the intersection of hardware, firmware, and real-world constraints.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="icon" type="image/png" href="/assets/images/logo_small.png">
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>Works | Mindstorms Engineering, LLC</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Works" />
+<meta name="author" content="Nathan Jones" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Consulting, education, and technical writing at the intersection of hardware, firmware, and real-world constraints." />
+<meta name="twitter:description" property="og:description" content="Consulting, education, and technical writing at the intersection of hardware, firmware, and real-world constraints." />
+<link rel="canonical" href="http://localhost:4000/works.html" />
+<meta property="og:url" content="http://localhost:4000/works.html" />
+<meta property="og:site_name" content="Mindstorms Engineering, LLC" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Works" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","author":{"@type":"Person","name":"Nathan Jones"},"description":"Consulting, education, and technical writing at the intersection of hardware, firmware, and real-world constraints.","headline":"Works","url":"http://localhost:4000/works.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+  <link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Mindstorms Engineering, LLC" />
+</head>
+<body>
+
+  <nav class="site-nav" id="site-nav">
+    <a href="/" class="nav-brand">
+      <img src="/assets/images/logo_medium.png" alt="Mindstorms Engineering" class="nav-logo">
+    </a>
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleNav(this)">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="nav-links">
+      <a href="/#about">About</a>
+      <a href="/#services">Services</a>
+      <a href="/works.html">Works</a>
+      <a href="/#contact">Contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <section class="works-page">
+  <div class="section-inner">
+
+    <header class="works-header">
+      <div class="section-label">Published Works</div>
+      <h1>Articles, Videos &amp; More</h1>
+      <p class="works-intro">
+        A living archive of consulting work, conference presentations, technical
+        articles, and educational content. Filter by type or subject below.
+      </p>
+    </header>
+
+    <!-- ─── Filters ─────────────────────────────────────── -->
+    <div class="filters" id="filters">
+
+      <div class="filter-group">
+        <span class="filter-label">Type</span>
+        <div class="filter-buttons" role="group" aria-label="Filter by type">
+          <button class="filter-btn active" data-filter="type" data-value="all">All</button>
+          <button class="filter-btn" data-filter="type" data-value="article">Article</button>
+          <button class="filter-btn" data-filter="type" data-value="video">Video</button>
+          <button class="filter-btn" data-filter="type" data-value="talk">Talk</button>
+          <button class="filter-btn" data-filter="type" data-value="tutorial">Tutorial</button>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <span class="filter-label">Subject</span>
+        <div class="filter-buttons" role="group" aria-label="Filter by subject">
+          <button class="filter-btn active" data-filter="subject" data-value="all">All</button>
+          
+          
+          
+          
+          <button class="filter-btn" data-filter="subject" data-value="architecture">architecture</button>
+          
+          <button class="filter-btn" data-filter="subject" data-value="digital-design">digital-design</button>
+          
+          <button class="filter-btn" data-filter="subject" data-value="education">education</button>
+          
+          <button class="filter-btn" data-filter="subject" data-value="firmware">firmware</button>
+          
+          <button class="filter-btn" data-filter="subject" data-value="fpga">fpga</button>
+          
+          <button class="filter-btn" data-filter="subject" data-value="security">security</button>
+          
+        </div>
+      </div>
+
+      <div class="filter-group filter-sort">
+        <span class="filter-label">Sort</span>
+        <div class="filter-buttons">
+          <button class="filter-btn active" id="sort-newest">Newest</button>
+          <button class="filter-btn" id="sort-oldest">Oldest</button>
+        </div>
+      </div>
+
+      <div class="filter-status" id="filter-status" aria-live="polite"></div>
+    </div>
+
+    <!-- ─── Post Grid ─────────────────────────────────────── -->
+    <div class="works-grid" id="works-grid">
+      
+      <article
+        class="work-card work-card-full"
+        data-type="article"
+        data-subjects="firmware,security"
+        data-date="1718427600"
+      >
+        <div class="work-card-meta">
+          <span class="tag tag-type tag-article">
+            article
+          </span>
+          <time datetime="2024-06-15T00:00:00-05:00">
+            June 15, 2024
+          </time>
+        </div>
+
+        <h2 class="work-card-title">
+          <a href="/works/2024/06/15/aes-challenge-response-keyfob/">AES-Based Challenge-Response Authentication for Key Fob Systems</a>
+        </h2>
+
+        
+        <p class="work-card-excerpt">A walkthrough of implementing AES-based challenge-response authentication on a resource-constrained microcontroller, with fault-resistant design to withstand voltage glitching a...</p>
+        
+
+        <div class="work-card-footer">
+          
+          <div class="work-card-subjects">
+            
+            <span class="tag tag-subject">firmware</span>
+            
+            <span class="tag tag-subject">security</span>
+            
+          </div>
+          
+
+          
+          <span class="work-has-docs" title="2 attached document(s)">
+            📎 2 docs
+          </span>
+          
+
+          <a href="/works/2024/06/15/aes-challenge-response-keyfob/" class="read-link">Read →</a>
+        </div>
+      </article>
+      
+      <article
+        class="work-card work-card-full"
+        data-type="tutorial"
+        data-subjects="firmware,architecture,education"
+        data-date="1707544800"
+      >
+        <div class="work-card-meta">
+          <span class="tag tag-type tag-tutorial">
+            tutorial
+          </span>
+          <time datetime="2024-02-10T00:00:00-06:00">
+            February 10, 2024
+          </time>
+        </div>
+
+        <h2 class="work-card-title">
+          <a href="/works/2024/02/10/hal-design-patterns-portable-c/">HAL Design Patterns for Portable Embedded C</a>
+        </h2>
+
+        
+        <p class="work-card-excerpt">How to structure a Hardware Abstraction Layer so that application code doesn't care which microcontroller it's running on — and how to use dependency injection to make that code...</p>
+        
+
+        <div class="work-card-footer">
+          
+          <div class="work-card-subjects">
+            
+            <span class="tag tag-subject">firmware</span>
+            
+            <span class="tag tag-subject">architecture</span>
+            
+            <span class="tag tag-subject">education</span>
+            
+          </div>
+          
+
+          
+
+          <a href="/works/2024/02/10/hal-design-patterns-portable-c/" class="read-link">Read →</a>
+        </div>
+      </article>
+      
+      <article
+        class="work-card work-card-full"
+        data-type="talk"
+        data-subjects="fpga,education,digital-design"
+        data-date="1698814800"
+      >
+        <div class="work-card-meta">
+          <span class="tag tag-type tag-talk">
+            talk
+          </span>
+          <time datetime="2023-11-01T00:00:00-05:00">
+            November 1, 2023
+          </time>
+        </div>
+
+        <h2 class="work-card-title">
+          <a href="/works/2023/11/01/fpga-intro-talk/">Getting Started with FPGA Design: A Practical Introduction</a>
+        </h2>
+
+        
+        <p class="work-card-excerpt">Slides and notes from an introductory talk on FPGA development — covering why FPGAs matter, how to think about RTL design, and a hands-on demo building a simple UART in VHDL.
+</p>
+        
+
+        <div class="work-card-footer">
+          
+          <div class="work-card-subjects">
+            
+            <span class="tag tag-subject">fpga</span>
+            
+            <span class="tag tag-subject">education</span>
+            
+            <span class="tag tag-subject">digital-design</span>
+            
+          </div>
+          
+
+          
+          <span class="work-has-docs" title="1 attached document(s)">
+            📎 1 doc
+          </span>
+          
+
+          <a href="/works/2023/11/01/fpga-intro-talk/" class="read-link">Read →</a>
+        </div>
+      </article>
+      
+    </div>
+
+    <p class="no-results" id="no-results" style="display:none;">
+      No works match the current filters. <button onclick="resetFilters()">Reset filters</button>
+    </p>
+
+  </div>
+</section>
+
+<script src="/assets/js/filter.js"></script>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-col">
+        <img src="/assets/images/logo_full.png" alt="Mindstorms Engineering, LLC" class="footer-logo">
+      </div>
+      <div class="footer-col">
+        <p class="footer-label">Connect</p>
+        <a href="https://www.linkedin.com/in/nathancharlesjones">LinkedIn</a>
+        <a href="https://github.com/nathancharlesjones">GitHub</a>
+        <a href="https://www.tindie.com/stores/0xc0decafe/">Tindie</a>
+        <a href="/feed.xml">RSS Feed</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-label">Contact</p>
+        <a href="mailto:contact@mindstormsengineering.com">contact@mindstormsengineering.com</a>
+        <a href="tel:6154884789">615.488.4789</a>
+        <p class="footer-hours">8:30am – 2:30pm CT, Monday – Friday</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Mindstorms Engineering, LLC. All rights reserved.</span>
+    </div>
+  </footer>
+
+  <script src="/assets/js/main.js"></script>
+
+</body>
+</html>

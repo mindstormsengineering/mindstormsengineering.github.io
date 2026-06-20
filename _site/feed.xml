@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.4.1">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2026-06-19T11:58:58-05:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">Mindstorms Engineering, LLC</title><subtitle>Consulting, education, and technical writing at the intersection of hardware, firmware, and real-world constraints.
+</subtitle><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><entry><title type="html">AES-Based Challenge-Response Authentication for Key Fob Systems</title><link href="http://localhost:4000/works/2024/06/15/aes-challenge-response-keyfob/" rel="alternate" type="text/html" title="AES-Based Challenge-Response Authentication for Key Fob Systems" /><published>2024-06-15T00:00:00-05:00</published><updated>2024-06-15T00:00:00-05:00</updated><id>http://localhost:4000/works/2024/06/15/aes-challenge-response-keyfob</id><content type="html" xml:base="http://localhost:4000/works/2024/06/15/aes-challenge-response-keyfob/"><![CDATA[<p>Embedded security is often treated as an afterthought—a thin veneer of
+protection bolted onto an otherwise-complete design. This post takes the
+opposite approach: we start from an attacker’s perspective and build a key fob
+authentication system that remains correct under adversarial conditions,
+including physical attacks like voltage glitching.</p>
+
+<h2 id="the-threat-model">The Threat Model</h2>
+
+<p>Before writing a single line of code, we need to understand what we’re
+defending against. For a key fob system, the relevant threat categories are:</p>
+
+<ul>
+  <li><strong>Replay attacks</strong> — capturing a valid authentication token and retransmitting it</li>
+  <li><strong>Brute-force attacks</strong> — exhaustively trying possible secrets</li>
+  <li><strong>Physical fault injection</strong> — using voltage glitches to skip security checks</li>
+</ul>
+
+<p>A naive <code class="language-plaintext highlighter-rouge">if (key == secret) unlock();</code> pattern is vulnerable to all three.</p>
+
+<h2 id="challenge-response-authentication">Challenge-Response Authentication</h2>
+
+<p>The standard mitigation for replay attacks is to require the authenticator to
+prove knowledge of a secret <em>in response to a fresh challenge</em>, rather than
+presenting a static token.</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Pseudocode — see reference implementation for full details</span>
+<span class="kt">void</span> <span class="nf">authenticate</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kt">uint8_t</span> <span class="n">challenge</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+    <span class="kt">uint8_t</span> <span class="n">response</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+    <span class="kt">uint8_t</span> <span class="n">expected</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+
+    <span class="n">generate_random</span><span class="p">(</span><span class="n">challenge</span><span class="p">,</span> <span class="mi">16</span><span class="p">);</span>
+    <span class="n">transmit</span><span class="p">(</span><span class="n">challenge</span><span class="p">,</span> <span class="mi">16</span><span class="p">);</span>
+    <span class="n">receive</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="mi">16</span><span class="p">);</span>
+
+    <span class="n">aes_encrypt</span><span class="p">(</span><span class="n">challenge</span><span class="p">,</span> <span class="n">SECRET_KEY</span><span class="p">,</span> <span class="n">expected</span><span class="p">);</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">constant_time_compare</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">expected</span><span class="p">,</span> <span class="mi">16</span><span class="p">))</span> <span class="p">{</span>
+        <span class="n">unlock</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The key details:</p>
+
+<ol>
+  <li><strong><code class="language-plaintext highlighter-rouge">generate_random</code></strong> must produce cryptographically unpredictable values — not
+a simple <code class="language-plaintext highlighter-rouge">rand()</code> seeded from uptime.</li>
+  <li><strong><code class="language-plaintext highlighter-rouge">constant_time_compare</code></strong> prevents timing side-channels that could leak
+information about where a comparison fails.</li>
+  <li>The secret key lives in protected flash, never transmitted.</li>
+</ol>
+
+<h2 id="fault-resistant-design">Fault-Resistant Design</h2>
+
+<p>Voltage glitching can cause individual instructions to be skipped or corrupted.
+A common attack pattern against authentication code is to glitch past the
+comparison, causing the branch to always succeed.</p>
+
+<p>The mitigation is redundancy and inversion checks:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Fault-resistant comparison pattern</span>
+<span class="n">bool</span> <span class="nf">secure_compare</span><span class="p">(</span><span class="k">const</span> <span class="kt">uint8_t</span> <span class="o">*</span><span class="n">a</span><span class="p">,</span> <span class="k">const</span> <span class="kt">uint8_t</span> <span class="o">*</span><span class="n">b</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">volatile</span> <span class="kt">uint8_t</span> <span class="n">diff</span>     <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="k">volatile</span> <span class="kt">uint8_t</span> <span class="n">inv_diff</span> <span class="o">=</span> <span class="mh">0xFF</span><span class="p">;</span>
+
+    <span class="k">for</span> <span class="p">(</span><span class="kt">size_t</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">diff</span>     <span class="o">|=</span> <span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">^</span> <span class="n">b</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+        <span class="n">inv_diff</span> <span class="o">&amp;=</span> <span class="o">~</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">^</span> <span class="n">b</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+    <span class="p">}</span>
+
+    <span class="c1">// Both must agree — a glitch that clears diff won't also set inv_diff</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">diff</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">inv_diff</span> <span class="o">==</span> <span class="mh">0xFF</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h2 id="what-this-doesnt-cover">What This Doesn’t Cover</h2>
+
+<p>This post focuses on the authentication handshake. A production system also
+needs secure key provisioning, secure boot, and a well-thought-out key
+hierarchy. Those are topics for future articles.</p>
+
+<p>See the attached reference implementation for a complete, buildable example
+targeting the STM32F4.</p>]]></content><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><summary type="html"><![CDATA[A walkthrough of implementing AES-based challenge-response authentication on a resource-constrained microcontroller, with fault-resistant design to withstand voltage glitching attacks.]]></summary></entry><entry><title type="html">HAL Design Patterns for Portable Embedded C</title><link href="http://localhost:4000/works/2024/02/10/hal-design-patterns-portable-c/" rel="alternate" type="text/html" title="HAL Design Patterns for Portable Embedded C" /><published>2024-02-10T00:00:00-06:00</published><updated>2024-02-10T00:00:00-06:00</updated><id>http://localhost:4000/works/2024/02/10/hal-design-patterns-portable-c</id><content type="html" xml:base="http://localhost:4000/works/2024/02/10/hal-design-patterns-portable-c/"><![CDATA[<p>One of the hardest things to teach in embedded systems is <em>portability</em>. Not
+because the concept is difficult, but because almost every example you find in
+the wild is deeply coupled to a specific chip family.</p>
+
+<p>This tutorial walks through a HAL design I’ve refined over several years of
+teaching and consulting work. The goal: application logic that compiles and
+runs identically on an STM32, a TM4C, or a native host for unit testing.</p>
+
+<h2 id="the-core-idea-program-to-interfaces">The Core Idea: Program to Interfaces</h2>
+
+<p>In C, we don’t have classes, but we have function pointers and structs. A HAL
+can be expressed as a struct of function pointers:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// hal/uart.h</span>
+<span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+    <span class="kt">void</span>     <span class="p">(</span><span class="o">*</span><span class="n">init</span><span class="p">)(</span><span class="kt">uint32_t</span> <span class="n">baud_rate</span><span class="p">);</span>
+    <span class="kt">void</span>     <span class="p">(</span><span class="o">*</span><span class="n">send_byte</span><span class="p">)(</span><span class="kt">uint8_t</span> <span class="n">byte</span><span class="p">);</span>
+    <span class="kt">int</span>      <span class="p">(</span><span class="o">*</span><span class="n">recv_byte</span><span class="p">)(</span><span class="kt">uint8_t</span> <span class="o">*</span><span class="n">out</span><span class="p">,</span> <span class="kt">uint32_t</span> <span class="n">timeout_ms</span><span class="p">);</span>
+    <span class="n">bool</span>     <span class="p">(</span><span class="o">*</span><span class="n">tx_ready</span><span class="p">)(</span><span class="kt">void</span><span class="p">);</span>
+<span class="p">}</span> <span class="n">uart_hal_t</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>Application code takes a <code class="language-plaintext highlighter-rouge">const uart_hal_t *</code> and calls through the
+interface. It has no idea whether the underlying implementation uses STM32
+HAL, bare-register access, or a ring buffer backed by a POSIX pipe.</p>
+
+<h2 id="platform-implementations">Platform Implementations</h2>
+
+<p>For each target, you provide a concrete implementation:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// platform/stm32/uart_stm32.c</span>
+<span class="k">static</span> <span class="kt">void</span> <span class="nf">stm32_uart_init</span><span class="p">(</span><span class="kt">uint32_t</span> <span class="n">baud_rate</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// ... STM32 HAL calls ...</span>
+<span class="p">}</span>
+
+<span class="k">const</span> <span class="n">uart_hal_t</span> <span class="n">uart_stm32</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="p">.</span><span class="n">init</span>      <span class="o">=</span> <span class="n">stm32_uart_init</span><span class="p">,</span>
+    <span class="p">.</span><span class="n">send_byte</span> <span class="o">=</span> <span class="n">stm32_uart_send_byte</span><span class="p">,</span>
+    <span class="p">.</span><span class="n">recv_byte</span> <span class="o">=</span> <span class="n">stm32_uart_recv_byte</span><span class="p">,</span>
+    <span class="p">.</span><span class="n">tx_ready</span>  <span class="o">=</span> <span class="n">stm32_uart_tx_ready</span><span class="p">,</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<h2 id="host-testing">Host Testing</h2>
+
+<p>For the host, you implement the same interface using standard C:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// platform/host/uart_host.c</span>
+<span class="k">static</span> <span class="kt">void</span> <span class="nf">host_uart_init</span><span class="p">(</span><span class="kt">uint32_t</span> <span class="n">baud_rate</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// No-op on host, or open a pty/socket</span>
+    <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">baud_rate</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="c1">// ...</span>
+</code></pre></div></div>
+
+<p>Now your application’s unit tests can run with <code class="language-plaintext highlighter-rouge">gcc</code> on your development
+machine, with no hardware required.</p>
+
+<h2 id="wiring-it-together">Wiring It Together</h2>
+
+<p>At startup (main.c for each target), pass the right implementation:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// main_stm32.c</span>
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">app_init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_stm32</span><span class="p">);</span>
+    <span class="k">while</span> <span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span> <span class="n">app_run</span><span class="p">();</span> <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// test_app.c</span>
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">app_init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_host</span><span class="p">);</span>
+    <span class="c1">// run tests ...</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h2 id="takeaways">Takeaways</h2>
+
+<ul>
+  <li>Function-pointer structs give you interface-based design in C</li>
+  <li>Keep platform-specific code behind the interface boundary</li>
+  <li>Build and test application logic on the host first — it’s much faster</li>
+</ul>
+
+<p>This pattern scales well to GPIO, SPI, I2C, timers, and any other peripheral.
+Once you’ve written a few HAL implementations, the pattern becomes second
+nature.</p>]]></content><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><summary type="html"><![CDATA[How to structure a Hardware Abstraction Layer so that application code doesn't care which microcontroller it's running on — and how to use dependency injection to make that code testable on a host machine.]]></summary></entry><entry><title type="html">Getting Started with FPGA Design: A Practical Introduction</title><link href="http://localhost:4000/works/2023/11/01/fpga-intro-talk/" rel="alternate" type="text/html" title="Getting Started with FPGA Design: A Practical Introduction" /><published>2023-11-01T00:00:00-05:00</published><updated>2023-11-01T00:00:00-05:00</updated><id>http://localhost:4000/works/2023/11/01/fpga-intro-talk</id><content type="html" xml:base="http://localhost:4000/works/2023/11/01/fpga-intro-talk/"><![CDATA[<p><em>These are the notes from a talk given at [your venue here] in November 2023.</em></p>
+
+<p>FPGAs have a reputation for being difficult to learn. Some of that reputation
+is deserved — the tooling can be rough, and “thinking in hardware” is a genuine
+mental shift. But the fundamentals are more approachable than they appear.</p>
+
+<h2 id="why-fpgas">Why FPGAs?</h2>
+
+<p>The short version: FPGAs let you implement custom digital hardware without
+committing to a fabrication run. You describe logic, synthesize it, and deploy
+to a chip that reconfigures itself to match your description.</p>
+
+<p>The use cases in embedded systems are mostly about performance and
+parallelism — things a microcontroller processes sequentially, an FPGA can
+handle in parallel, with deterministic timing.</p>
+
+<h2 id="rtl-thinking">RTL Thinking</h2>
+
+<p>The key mental model shift is this: you’re not writing instructions that
+execute one at a time. You’re describing <em>circuits</em> — logic that exists
+simultaneously and reacts to signals.</p>
+
+<p>A simple example in VHDL:</p>
+
+<div class="language-vhdl highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">-- A D flip-flop with synchronous reset</span>
+<span class="k">process</span><span class="p">(</span><span class="n">clk</span><span class="p">)</span>
+<span class="k">begin</span>
+    <span class="k">if</span> <span class="n">rising_edge</span><span class="p">(</span><span class="n">clk</span><span class="p">)</span> <span class="k">then</span>
+        <span class="k">if</span> <span class="n">reset</span> <span class="o">=</span> <span class="sc">'1'</span> <span class="k">then</span>
+            <span class="n">q</span> <span class="o">&lt;=</span> <span class="sc">'0'</span><span class="p">;</span>
+        <span class="k">else</span>
+            <span class="n">q</span> <span class="o">&lt;=</span> <span class="n">d</span><span class="p">;</span>
+        <span class="k">end</span> <span class="k">if</span><span class="p">;</span>
+    <span class="k">end</span> <span class="k">if</span><span class="p">;</span>
+<span class="k">end</span> <span class="k">process</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">process</code> block here describes what happens on every clock edge. It doesn’t
+“run” — it <em>reacts</em>.</p>
+
+<h2 id="the-demo-a-simple-uart-tx">The Demo: A Simple UART TX</h2>
+
+<p>The talk included a live demo building a UART transmitter from scratch:
+baud rate generator → shift register → start/stop bit insertion → output pin.</p>
+
+<p>See the attached slides for the full walkthrough with timing diagrams.</p>
+
+<h2 id="resources-for-going-deeper">Resources for Going Deeper</h2>
+
+<ul>
+  <li><em>Digital Design and Computer Architecture</em> (Harris &amp; Harris) — best textbook
+in the field, covers both VHDL and SystemVerilog</li>
+  <li><a href="https://nandland.com">nandland.com</a> — practical FPGA tutorials</li>
+  <li>Lattice iCEstick — good low-cost dev board for getting started</li>
+</ul>]]></content><author><name>Nathan Jones</name><email>contact@mindstormsengineering.com</email></author><summary type="html"><![CDATA[Slides and notes from an introductory talk on FPGA development — covering why FPGAs matter, how to think about RTL design, and a hands-on demo building a simple UART in VHDL.]]></summary></entry></feed>

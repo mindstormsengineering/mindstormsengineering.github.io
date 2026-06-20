@@ -1,0 +1,44 @@
+title: Mindstorms Engineering, LLC
+tagline: Embedded Systems, Thoughtfully Engineered
+description: >
+  Consulting, education, and technical writing at the intersection of
+  hardware, firmware, and real-world constraints.
+
+author:
+  name: Nathan Jones
+  email: contact@mindstormsengineering.com
+  phone: "615.488.4789"
+  business_hours: "8:30am – 2:30pm CT, Monday – Friday"
+  linkedin: https://www.linkedin.com/in/nathancharlesjones
+  github: https://github.com/nathancharlesjones
+  tindie: https://www.tindie.com/stores/0xc0decafe/
+
+baseurl: ""
+url: "https://nathancharlesjones.github.io"
+
+# Build settings
+markdown: kramdown
+theme: null
+
+# Pagination (optional – requires jekyll-paginate gem)
+# paginate: 10
+# paginate_path: "/works/page:num/"
+
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+
+# Front matter defaults
+defaults:
+  - scope:
+      path: ""
+      type: "posts"
+    values:
+      layout: "post"
+      permalink: /works/:year/:month/:day/:title/
+
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - "*.sh"
