@@ -1,0 +1,933 @@
+<h1>You Don't Need an RTOS (Part 2)</h1>
+<p>by Nathan Jones</p>
+<img src="/home/nathancharlesjones/Documents/Work/llc_assets/logo_full.png" width="300">
+<p>At least, probably not as often as you think you do. Using a preemptive RTOS can help make a system schedulable (i.e. help all of its tasks meet their deadlines) but it comes at a cost: "concurrently" running tasks can interact in unforeseen ways that cause system failures, that dreaded class of errors known as "race conditions". In part, this is because humans have difficulty thinking about things that happen concurrently. Using the venerable superloop can help avoid this problem entirely and, in some cases, it can actually make a system work that wouldn't work at all using an RTOS! Additionally, a "superloop" style scheduler has the benefit of being simple enough for you to write yourself in a few dozen lines of code.</p>
+<p>If you're unfamiliar with terms like "deadlines", "schedulability", or "worst-case response time", then I would argue you are almost <em>definitely</em> using an RTOS prematurely! If you <em>are</em> familiar with those terms, allow me to show you a few ways to improve the superloop that bring its performance nearly on par with an RTOS, with no concern about race conditions.</p>
+<p><em>This is the second in a series of posts lauding the advantages of the simple "superloop" scheduler. Other articles in this series are or will be linked below as they are published.</em></p>
+<ul>
+<li><a href="https://www.embeddedrelated.com/showarticle/1636.php">Part 1: Comparing Superloops and RTOSes</a></li>
+<li>Part 2: The "Superduperloop" (this article)</li>
+<li><a href="https://www.embeddedrelated.com/showarticle/1653.php">Part 3: Other Cool Superloops and DIY IPC</a></li>
+<li><a href="https://www.embeddedrelated.com/showarticle/1662.php">Part 4: More DIY IPC</a></li>
+</ul>
+<h2>Contents</h2>
+<ul>
+<li><a href="#part-2-the-superduperloop">Part 2: The "Superduperloop"</a></li>
+<li><a href="#a-quick-recap">A Quick Recap</a></li>
+<li><a href="#change-1">Change #1: Adding Task Priorities using <code>if...else if</code></a>
+<ul>
+<li><a href="#schedulability-task-priorities">Schedulability of the Superloop with Task Priorities (a.k.a. the "Superduperloop")</a></li>
+<li><a href="#assigning-task-priorities">Assigning Task Priorities</a>
+<ul>
+<li><a href="#case-1">Case #1: Tasks with longer deadlines universally have longer WCETs</a></li>
+<li><a href="#case-2a">Case #2a: The General Case, Exhaustive Search</a></li>
+<li><a href="#case-2b">Case #2b: The General Case, Audsley's Algorithm</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#change-2">Change #2: Adding Interrupts</a>
+<ul>
+<li><a href="#schedulability-interrupts">Schedulability of the "Superduperloop" with Interrupts</a></li>
+</ul>
+</li>
+<li><a href="#reducing-wcet">Reducing the WCET of Your Tasks</a></li>
+<li><a href="#change-3">Change #3: Turning Tasks into Finite State Machines</a>
+<ul>
+<li><a href="#race-conditions">Dealing with Race Conditions</a></li>
+<li><a href="#schedulability-superduperloop">Schedulability of the "Superduperloop" with FSMs</a></li>
+<li><a href="#protothreads-and-coroutines-in-c">Cool Projects to Check Out: Protothreads and "Coroutines in C"</a></li>
+</ul>
+</li>
+<li><a href="#going-to-sleep">Bonus Change!: Going to Sleep</a></li>
+<li><a href="#time-triggered-scheduler">Alternative Design: The Time-triggered Scheduler</a></li>
+<li><a href="#in-the-blue-corner">"In the blue corner...!"</a>
+<ul>
+<li><a href="#curious-case">The Curious Case of the "Superduperloop" Besting an RTOS!!</a></li>
+</ul>
+</li>
+<li><a href="#rios">Cool Project to Check Out: RIOS</a></li>
+<li><a href="#whats-missing">What's Missing from the Superduperloop?</a></li>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#references">References</a></li>
+</ul>
+<h2 id="part-2-the-superduperloop">Part 2: The "Superduperloop"</h2>
+<p>In this second article we'll tweak the simple superloop in three critical ways that will improve it's worst-case response time (WCRT) to be nearly as good as a preemptive RTOS ("real-time operating system"). We'll do this by adding <strong>task priorities, interrupts, and finite state machines</strong>. Additionally, we'll discuss how to incorporate a sleep mode when there's no work to be done and I'll also share with you a different variation on the superloop that can help schedule even the toughest of task sets.</p>
+<h2 id="a-quick-recap">A Quick Recap</h2>
+<p>In Part 1 of this series, we compared the superloop and RTOS schedulers. The simple superloop that we analyzed looked like this:</p>
+<pre>volatile int g_systick = 0;
+void timerISR(void)
+{
+    g_systick++;
+}
+void main(void)
+{
+    while(1)
+    {
+        if( /* A is ready */ ) { /* Run Task A */ };
+        if( /* B is ready */ ) { /* Run Task B */ };
+        if( /* C is ready */ ) { /* Run Task C */ };
+    }
+}
+</pre>
+<p>The WCRT of any task ended up being equal to the sum of the WCETs of every task (equation <a href="https://www.embeddedrelated.com/showarticle/1636.php#eq-1">1</a> from Part 1), since the worst thing that could happen is for a task to become ready to run <em>juuuust</em> after the scheduler evaluates its <code>if</code> expression as <code>false</code> and then <em>every</em> other task runs, taking their longest possible execution times when they do. In general, if each task's WCRT is less than its deadline then the system is schedulable; since every task has the same WCRT in this case, we only need to check if that's less than the shortest deadline of any task in the task set. If it is, then the system is schedulable.</p>
+<h2 id="change-1">Change #1: Adding Task Priorities using <code>if...else if</code></h2>
+<p>Our first change is subtle, yet powerful: instead of coding our tasks as a list of separate <code>if</code>s, we're going to turn the whole thing into a <em>chained</em> <code>if</code> statement using <code>else if</code>s.</p>
+<pre>volatile int g_systick = 0;
+void timerISR(void)
+{
+    g_systick++;
+}
+void main(void)
+{
+    while(1)
+    {
+        if     ( /* A is ready */ ) { /* Run Task A */ };
+        else if( /* B is ready */ ) { /* Run Task B */ };
+        else if( /* C is ready */ ) { /* Run Task C */ };
+    }
+}
+</pre>
+<p>What effect does this have? Since an <code>if</code> statement will only ever execute the first conditional path in the chain that evaluates to <code>true</code>, this code will find and execute the first ready-to-run task, jump to the bottom of the <code>if</code> statement, and then start back again at the top. If the tasks are sorted so that tasks with higher priority are situated higher up in the chain of <code>if</code> clauses (with the highest priority task being at the top of the <code>if</code> statement and the lowest priority task being at the bottom), then this change has the effect of <em>always running the highest priority task that's ready to run</em>. We've created task priorities just by adding some <code>else if</code>s!</p>
+<h3 id="schedulability-task-priorities">Schedulability of the Superloop with Task Priorities (a.k.a. the "Superduperloop")</h3>
+<p>How does this improve our WCRTs? Let's again consider the worst-case scenario: a task has become ready to run <em>juuuust</em> after the scheduler evaluates its <code>if</code> expression as <code>false</code>. What's the worst thing that could happen then?</p>
+<ol>
+<li>First, a lower priority task runs instead. Only it's not any lower priority task, it the <em>longest</em> lower priority task that we have in our system. Once it's done, the scheduler starts back at the top of the loop.</li>
+<li>Next, <em>every</em> higher priority task runs, with the scheduler starting back at the top of the loop after each one. Notice that this means that some higher priority tasks can run <em>multiple times</em> before our task ever gets to run if, by all of the higher priority tasks running, some of the highest priority tasks are released multiple times.</li>
+<li>Finally, once no more higher priority tasks are ready to run, the task in question gets to run.</li>
+</ol>
+<p>We can express this WCRT in equation (1). Since the higher priority tasks have the ability of running multiple times, we need to use the ceiling function like we did when we evaluated the schedulability of the RTOS in equation (3) in Part 1.</p>
+<p id="eq-1">$$WCRT_j = max(WCET_{i \in i&gt;j}) + \sum_{i=0}^{j-1} ( {\left \lceil \frac {WCRT_j - WCET_j} {P_i} \right \rceil \cdot WCET_i} ) + WCET_j \tag{1}$$</p>
+<p>The term <em>WCRT<sub>j</sub> - WCET<sub>j</sub></em> in the summation represents the total amount of time that a higher priority task could potentially run before Task j runs. It might help to represent this with another sequence diagram; we'll assume that we're trying to calculate the response time for Task C.</p>
+<figure><center><img src="https://imgur.com/MxlS2Ke.png" height="200"></center></figure>
+<p>In this situation, Task A and B get released once each during the time it takes the longest lower priority task (D) to run. <em>Additionally</em>, Task A gets released one more time before Task B is finished, so Task A gets to run an additional time. Finally, Task C gets to run.</p>
+<p>When we're trying to figure out the maximum amount of time in which the higher priority tasks might get to run, we have to include everything from the start of our WCRT analysis up to the start of Task C. If the cumulative total of all of the blocks is "<em>WCRT<sub>j</sub></em>", then that amount of time can be expressed as "<em>WCRT<sub>j</sub> - WCET<sub>j</sub></em>", since it's the total time minus the last block (<em>WCET<sub>j</sub></em>) which is what we have in equation (1).</p>
+<p>This is a <em>significant</em> improvement over the WCRT from the simple superloop. The response time for the highest priority task is potentially only as long as the execution time of the longest lower priority task, which seems nearly as good as the response time for an RTOS (see equation <a href="https://www.embeddedrelated.com/showarticle/1636.php#eq-3">3</a> from Part 1). In fact, it might actually be <em>better</em> than the WCRT for an RTOS because once our task starts running we don't have to worry about higher priority tasks preempting our task! The improvement from a simple superloop is so great that I'll call this scheduler the <strong>"Superduperloop"</strong>, though you might see it described in literature simply as a <strong>fixed-priority, non-preemptive scheduler</strong>.</p>
+<h3 id="assigning-task-priorities">Assigning Task Priorities</h3>
+<p>Just like for the RTOS, assigning task priorities becomes a critical next step to ensuring that our system is schedulable. Unfortunately, this process can be a bit more complicated than simply using DMS (deadline monotonic scheduling). There are three ways to determine an optimal assignment of priority numbers for our "superloop with task priorities" scheduler that each progress from simple (and only applicable in certain situations) to complex (and applicable in all situations).</p>
+<h4 id="case-1">Case #1: Tasks with longer deadlines universally have longer WCETs</h4>
+<p>This case is the most restrictive but it has the easiest priority assignment algorithm. It only works if, after you have sorted your task in order of&nbsp;<em>increasing</em> deadline it is <em>universally true</em> that your tasks are also sorted in order of&nbsp;<em>increasing</em> WCET. The task set below is an example of one such task set that meets this criteria.</p>
+<center>
+<table border="1">
+<tbody>
+<tr>
+<th>Task</th>
+<th>Execution time (us)</th>
+<th>Period (us)</th>
+<th>Deadline (us)</th>
+</tr>
+<tr align="center">
+<td>A</td>
+<td>1</td>
+<td>5</td>
+<td>5</td>
+</tr>
+<tr align="center">
+<td>B</td>
+<td>2</td>
+<td>10</td>
+<td>10</td>
+</tr>
+<tr align="center">
+<td>C</td>
+<td>4</td>
+<td>12</td>
+<td>12</td>
+</tr>
+</tbody>
+</table>
+</center>
+<p>If this condition is met then you can use the DMS algorithm to assign task priorities: the tasks with the shortest deadlines have the highest priorities.</p>
+<p>In contrast, the task set below does <em>not</em> meet this criteria. Notice how Tasks B and C have longer deadlines but shorter WCETs than Task A.</p>
+<center>
+<table border="1">
+<tbody>
+<tr>
+<th>Task</th>
+<th>Execution time (us)</th>
+<th>Period (us)</th>
+<th>Deadline (us)</th>
+</tr>
+<tr align="center">
+<td>A</td>
+<td><strong>3</strong></td>
+<td>5</td>
+<td>5</td>
+</tr>
+<tr align="center">
+<td>B</td>
+<td><strong>2</strong></td>
+<td>10</td>
+<td>6</td>
+</tr>
+<tr align="center">
+<td>C</td>
+<td><strong>1</strong></td>
+<td>10</td>
+<td>7</td>
+</tr>
+</tbody>
+</table>
+</center>
+<p>Nothing is stopping us from checking if this system is schedulable using DMS, even if the criteria above isn't met, it just means that if the task set <em>isn't</em> schedulable when priorities are assigned this way then it <em>doesn't necessarily</em> mean that the task set isn't schedulable at all.</p>
+<p>If the condition above doesn't hold for a task set (as in the last example), I'd recommend trying to make it work before you give up. Can you run certain tasks slightly faster or relax their deadlines just enough to massage your task set into matching the requirement above (more on this in the section <a href="#reducing-wcet">Reducing the WCET of Your Tasks</a>)? Doing so will definitely make assigning priorities much simpler! If you can't, you'll need to use one of the two following procedures.</p>
+<h4 id="case-2a">Case #2a: The General Case, Exhaustive search</h4>
+<p>For all other cases it's feasible (though inefficient) to just exhaustively try all possible combinations of priority assignments to see which one (if any) work for your task set. You'd probably write a program to help you compute that that would look something like the pseudocode below.</p>
+<pre>FOR EACH combination of priority assignments
+    schedulable = TRUE
+    FOR EACH task
+        IF WCRT of task &gt; Deadline of task    // i.e. task is not schedulable
+            schedulable = FALSE
+            Break out of inner FOR EACH loop  // i.e. try a new priority assignment
+    IF schedulable
+        Break out of outer FOR EACH loop      // If this line of code is reached, then
+                                              // we found a priority assignment that
+                                              // allows every task to be scheduled!
+</pre>
+<p>This algorithm has a complexity of $O(n!)$, though, which means it might work fine for task sets with a small number of tasks but it gets less and less feasible if the number of tasks we're trying to schedule gets large. If we can't afford to spend that much time searching for a priority scheme that works (or we simply don't want to be that inefficient), then we'll resort to our last procedure.</p>
+<h4 id="case-2b">Case #2b: The General Case, Audsley's Algorithm</h4>
+<p>In 1991, Neil Cameron Audsley published a technical report that reduced the problem of searching for this workable set of priority assignments from $O(n!)$ to merely $O(n^2)$. That's a significant improvement! It relied on two key deductions:</p>
+<ol>
+<li>For a set of n tasks, any workable priority scheme will have one task, and only one task, at each priority level. It doesn't make sense to say that a system is schedulable "as long as Tasks B and C run at the same priority level" since that amounts to saying "this only works if these two tasks run at the same time".</li>
+<li>To determine if a given task is schedulable at a given priority level, we only need to consider the set of tasks that are either (1) at a higher priority than our task or (2) at a lower priority than our task. The exact priority of those higher or lower priority tasks is of no concern, only whether they exist at a higher- or lower-priority than the task we're considering at the moment. (You can see this in our equation for WCRT above. There's <em>no part</em> of that equation that changes the WCRT for Task C if Task B actually has a higher priority than Task A; we'd get the same value for WCRT<sub>C</sub> regardless.)</li>
+</ol>
+<p>Here's how Audsley's Algorithm works:</p>
+<ol>
+<li>Start at the lowest priority level for a given set of tasks and see which (if any) tasks can be scheduled assuming <em>every other unassigned task exists at a higher priority level</em>. If none of your tasks can be scheduled at the lowest priority level, you're done! Because your system isn't schedulable. :(</li>
+<li>As long as one task can be scheduled at the lowest priority level, assign it that priority. (If more than one could possibly work at that lowest priority level it doesn't really matter which we pick because we'll still find a workable solution if any such solution exists; this will be easier to grasp once I show you some graphics, below.)</li>
+<li>Go back to step 1 and repeat with the next higher priority level.</li>
+</ol>
+<p>To help you understand this, think about a matrix with our tasks listed across the top and our priority levels listed down the left side, like below.</p>
+<center>
+<table border="1">
+<tbody>
+<tr align="center">
+<td>Priority \ Task</td>
+<td>A</td>
+<td>B</td>
+<td>C</td>
+<td>D</td>
+<td>E</td>
+</tr>
+<tr align="center">
+<td>0</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr align="center">
+<td>1</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr align="center">
+<td>2</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr align="center">
+<td>3</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr align="center">
+<td>4</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</center>
+<p>Based just on which tasks are higher or lower in priority for a given task at a given priority level, we can determine, for each box in our matrix, whether that task will be schedulable. Since tasks with the highest priority will invariably have the smallest WCRT, we can expect the matrix (once it were completed) to look like it does below, with all tasks being schedulable at the highest priority level and then, somewhere down the list of priorities, that task <em>not</em> being schedulable anymore.</p>
+<center>
+<table border="1">
+<tbody>
+<tr align="center">
+<td>Priority \ Task</td>
+<td>A</td>
+<td>B</td>
+<td>C</td>
+<td>D</td>
+<td>E</td>
+</tr>
+<tr align="center">
+<td>0</td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#50c878"></td>
+</tr>
+<tr align="center">
+<td>1</td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#c24641"></td>
+</tr>
+<tr align="center">
+<td>2</td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#c24641"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#c24641"></td>
+</tr>
+<tr align="center">
+<td>3</td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#c24641"></td>
+<td bgcolor="#c24641"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#c24641"></td>
+</tr>
+<tr align="center">
+<td>4</td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#c24641"></td>
+<td bgcolor="#c24641"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#c24641"></td>
+</tr>
+</tbody>
+</table>
+</center>
+<p>It's pretty clear from this table that Task E has to have the highest priority, otherwise the system doesn't work. Similarly, next come B and C and then tasks A and D can occupy either of the lowest two priority levels. (This also shows you why it doesn't matter that we assign the lowest priority to the first task we find that can be schedulable at that lowest priority level; whether we'd found Task A first or Task D, the other one would have been found on the next iteration of the algorithm and we'd have found essentially the same solution.)</p>
+<p>Consider a different set of tasks with a table that looks like it does below.</p>
+<center>
+<table border="1">
+<tbody>
+<tr align="center">
+<td>Priority \ Task</td>
+<td>A</td>
+<td>B</td>
+<td>C</td>
+<td>D</td>
+<td>E</td>
+</tr>
+<tr align="center">
+<td>0</td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#50c878"></td>
+</tr>
+<tr align="center">
+<td>1</td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#c24641"></td>
+</tr>
+<tr align="center">
+<td>2</td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#c24641"></td>
+<td bgcolor="#c24641"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#c24641"></td>
+</tr>
+<tr align="center">
+<td>3</td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#c24641"></td>
+<td bgcolor="#c24641"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#c24641"></td>
+</tr>
+<tr align="center">
+<td>4</td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#c24641"></td>
+<td bgcolor="#c24641"></td>
+<td bgcolor="#50c878"></td>
+<td bgcolor="#c24641"></td>
+</tr>
+</tbody>
+</table>
+</center>
+<p>This set of tasks clearly <em>doesn't</em> work, exactly because Tasks B and C are only schedulable if they're run at the same priority level (i.e. at the exact same time).</p>
+<p>Audley's algorithm works exactly like that: start in the box at the bottom left (lowest priority, first task in the list of tasks) and work your way along the bottom row, stopping when you find a task that's schedulable. Assign it that priority level and then move up one row. If you make your way to the top, you've found a priority scheme that works! If no tasks are schedulable at a given priority level, though (like in that last example), then there isn't <em>any</em> priority scheme that will work for your task set. The pseudocode for this algorithm might look like that below.</p>
+<pre>FOR EACH priority level
+    schedulable = FALSE
+    FOR EACH unassigned task
+        IF WCRT of the task &lt; Deadline of the task    // i.e. task is schedulable at this priority level
+            Task priority level becomes the current priority level
+            schedulable = TRUE
+            Break out of the inner FOR EACH loop
+    IF NOT schedulable
+        Break out of the outer FOR EACH loop         // If this line of code is reached, then NO tasks
+                                                     // were schedulable at the given priority level
+                                                     // and the task set ISN'T schedulable.
+// IF we get here, though, and schedulable equals TRUE, then the algorithm was able to assign a task
+// at each priority level and the system IS schedulable!
+</pre>
+<p>If the result of this algorithm is that your task set isn't schedulable, don't give up yet! See if you're able to relax your constraints a little (by optimizing tasks to run faster or relaxing their deadlines or periods) to help make your system schedulable (more on this in the section <a href="#reducing-wcet">Reducing the WCET of Your Tasks</a>). Additionally, there's some evidence to suggest that restricting your task periods to be even multiples of each smaller period (like was discussed in the <a href="https://www.embeddedrelated.com/showarticle/1636.php#the-utilization-test-and-harmonic-rate-monotonic-scheduling">last article</a>) can help make your system more schedulable. If neither solution is feasible or helps, you'll need to consider using a preemptive RTOS, a dynamic priority scheme (more on this in a future article), or even adding another processor to make your system work.</p>
+<h2 id="change-2">Change #2: Adding Interrupts</h2>
+<p>For our next change, we'll actually allow interrupts for the first time. Yay!</p>
+<pre>volatile int g_systick = 0;
+void timerISR(void)
+{
+    g_systick++;
+}
+void uartISR(void) { ... }
+void adcISR(void) { ... }
+void main(void)
+{
+    while(1)
+    {
+        if     ( /* A is ready */ ) { /* Run Task A */ };
+        else if( /* B is ready */ ) { /* Run Task B */ };
+        else if( /* C is ready */ ) { /* Run Task C */ };
+    }
+}
+</pre>
+<p>The effect of this change almost goes without saying: our system can now respond extremely quickly to events that would otherwise only get processed once the associated task could run. This is an enormous relief to any system we're designing. Think of the original example I presented in Part 1, in which a system was responding to serial commands at 200k characters/sec and also updating a PD controller: in that example, both the <code>readSerial</code> task <em>and</em> the <code>PD</code> task needed to finish executing <em>in less time</em> than it might take a new serial character to arrive, otherwise the system wasn't schedulable. And the <code>readSerial</code> task needed to include any time spent actually executing a command once it had been received! Now we can put the short and time-critical portion of <code>readSerial</code> (that of receiving a character and placing it into a buffer) into it's own interrupt, with the <code>readSerial</code> task only needing to execute as often as we might expect full commands to arrive.</p>
+<p>This system isn't without it's downsides, though. Primarily, the improved WCRT that our ISRs enjoy is the result of <strong>hardware preemption</strong> and I made a big point in Part 1 about how fraught with errors that can be. You'll need to remember the problems that race conditions pose when you write your ISRs, keeping them short and having as few points of interaction with the rest of the system as possible. Ideally, ISRs don't do much more than move data to/from a buffer and/or set a flag to indicate to the main code that they've run. Additionally, by significantly improving the WCRT of certain tasks (the ISRs), we've inadvertently worsened the WCRTs of the lower priority tasks (not unlike an RTOS); more on this in the very next section.</p>
+<h3 id="schedulability-interrupts">Schedulability of the "Superduperloop" with Interrupts</h3>
+<p>The WCRT of a task in this system is essentially the same as before, with the exception that <em>any</em> ISR could run at <em>any</em> point throughout a task's WCRT. This means that we'll need to include an additional term with the ceiling function to account for all of that execution time. Also, since we can think of ISRs as being tasks with even higher priorities than the main loop tasks, we're going to re-number things. For a given system, 0 is still the highest priority task, but this now corresponds to an ISR. If the system has N ISRs, then these all have task numbers from 0 to N-1. If this same system has M main loop tasks, then these all have task numbers from N to N+M-1.</p>
+<center>
+<pre>   ISRs         Main loop   
+  /-----------\ /-------------\
+  0 1 2 ... N-1 N N+1 ... N+M-1
+/|\                       /|\
+|                         |
+Highest priority    Lowest priority
+</pre>
+</center>
+<p>The equation below for the WCRT of a task in this system is the same as equation <a href="#eq-1">1</a> with the addition of the third term, reflecting the total execution time of all ISRs that could run before Task j gets to finish.</p>
+<p id="eq-2">$$WCRT_j = max(WCET_{i \in i&gt;j}) + \sum_{i=N}^{j-1} ( {\left \lceil \frac {WCRT_j - WCET_j} {P_i} \right \rceil \cdot WCET_i} ) + \sum_{i=0}^{N-1} ( {\left \lceil \frac {WCRT_j} {P_i} \right \rceil \cdot WCET_i} ) + WCET_j \tag{2}$$</p>
+<p>If we modified our example above to include an ISR, it might look like the sequence diagram below.</p>
+<figure><center><img src="https://imgur.com/qa0DrDI.png" height="320"></center></figure>
+<p>But that's just the WCRT for each of the <em>main loop</em> tasks in our system. Let's now think about the WCRT for the <em>ISR</em> tasks in our system.</p>
+<p>Thankfully, the WCRTs for the ISRs will look very similar to what we've already seen. The only catch is that we'll have to consider whether our processor will allow ISRs to be preempted or not. If they can be, then their WCRTs looks a whole heck of a lot like the WCRT for an RTOS (equation <a href="https://www.embeddedrelated.com/showarticle/1636.php#eq-3">3</a> from Part 1). If they can't, their WCRTs look more like the WCRT for our superloop with priorities (equation <a href="#eq-1">1</a>, above), since ISRs will have to wait for the current ISR to finish before being run in priority order.</p>
+<p id="eq-3-and-4">$$ISRs \; are \; preemptible: \; WCRT_{j, \, j \lt N} = \sum_{i=0}^{j-1} ( {\left \lceil \frac {WCRT_j} {P_i} \right \rceil \cdot WCET_i} ) + WCET_j \tag{3}$$ $$ISRs \; are \; non-preemptible: \; WCRT_{j, \, j \lt N} = max(WCET_{i, \, i \lt N}) + \sum_{i=0}^{j-1} ( {\left \lceil \frac {WCRT_j - WCET_j} {P_i} \right \rceil \cdot WCET_i} ) + WCET_j \tag{4}$$</p>
+<h2 id="reducing-wcet">Reducing the WCET of Your Tasks</h2>
+<p>Since it's the longest running low-priority task that is currently limiting our WCRTs the most, let's consider how we might reduce it's execution time. In fact, the tips below work equally well for reducing the WCET of any task in your system, which will help make it easier to schedule.</p>
+<ul>
+<li>Run the CPU at a faster clock speed.</li>
+<li>Move tasks with shorter deadlines to dedicated co-processors.</li>
+<li>Move work done by a task onto a hardware peripheral.</li>
+<li>Look for speed optimizations in your code or toolchain such as loop unrolling, compiling at a higher optimization level, etc.</li>
+<li><strong>Break up the task into states.</strong></li>
+</ul>
+<p>It's to the last item that we direct our attention now, since it's the only one that has an effect on how our "Superduperloop" scheduler is constructed and how we calculate the WCRTs of our tasks (since it doesn't affect the overall WCET for a task, just how long it blocks before exiting).</p>
+<h2 id="change-3">Change #3: Turning Tasks into Finite State Machines</h2>
+<p>For some tasks, removing all blocking code is fairly non-trivial. What if your task is waiting for a response from a sensor or a remote server? Those portions of code might take a lengthy time! Consider the example below, modeling a task that reads a value from a sensor on a SPI bus, computes a running average, transmits the updated running average somewhere (e.g. over WiFi, over UART, etc) and then waits for an acknowledgement from that server:</p>
+<pre>void TaskA(void)
+{
+    if( lockSPI() )
+    {
+        readSensor1();    // Sensor 1 is on the SPI bus
+        unlockSPI();
+        computeRunningAverage();
+        txNewRunningAvg();
+        while( !ackReceived() );
+    }
+}
+</pre>
+<p>A task like this is ideal for converting into a finite state machine (FSM) since we can put transition points at the places where the task is just waiting for something to happen.</p>
+<pre>void TaskA(void)
+{
+    static enum { WAITING_FOR_SPI, WAITING_FOR_ACK } state = WAITING_FOR_SPI;
+    switch( state )
+    {
+        case WAITING_FOR_SPI:
+            if( lockSPI() )
+            {
+                readSensor1();    // Sensor 1 is on the SPI bus
+                unlockSPI();
+                computeRunningAverage();
+                txNewRunningAvg();
+                state = WAITING_FOR_ACK;
+            }
+            break;
+        case WAITING_FOR_ACK:
+            if( ackReceived() ) state = WAITING_FOR_SPI;
+            break;
+    }
+}
+</pre>
+<p>As in the first code example, our FSM's default state checks if it can acquire a lock on the SPI bus and, if it can, it proceeds to read the sensor and transmit the new running average over a different network (such as WiFi or something); otherwise it does nothing. Instead of blocking and waiting for an acknowledgement from the server, though, our task merely transitions to a new state, <code>WAITING_FOR_ACK</code>. It remains here until the acknowledgement is received, at which point the task begins anew in the <code>WAITING_FOR_SPI</code> state. Notice that moving through the FSM (i.e. completing the task) now requires executing the task at least twice (and quite possible more, depending on how long it takes to acquire the lock on the SPI bus or receive the acknowledgement from the server).</p>
+<p>Additionally, we can use this technique to break up long chunks of code. Consider the function below, that does some complex math on a long array of numbers.</p>
+<pre>void TaskA(int * array, size_t len)
+{
+    for( size_t idx = len; idx &gt; 0; idx-- )
+    {
+        // Complex math on array[len-idx]
+    }
+}
+</pre>
+<p>If we just wanted to halve the execution time of this task, we could alter the task so that it executed in two steps or states.</p>
+<pre>void TaskA(int * array, size_t len)
+{
+    static enum { FIRST, SECOND } state = FIRST;
+    switch( state )
+    {
+        case FIRST:
+            for( size_t idx = len; idx &gt; (len/2); idx-- )
+            {
+                // Complex math on array[len-idx]
+            }
+            state = SECOND;
+            break;
+        case SECOND:
+            for( size_t idx = (len/2); idx &gt; 0; idx-- )
+            {
+                // Complex math on array[len-idx]
+            }
+            state = FIRST;
+            break;
+    }
+}
+</pre>
+<p>Notice how the two <code>for</code> loops now iterate over only half of the array at a time.</p>
+<p>Breaking up your tasks into states like this can help reduce their WCET, since the WCET only needs to account for the longest execution of path of a single state, not the entire task. A shorter WCET, particularly for the longest low priority task, can have a significant positive impact on the WCRT of the other tasks and, overall, the ability for your task set to be schedulable with the "Superduperloop" scheduler.</p>
+<p>One last piece remains, though, related to how the tasks are executed. Previously the tasks were only released by system conditions (e.g. <code>charAvailable()</code> or <code>PD_next_run - g_systick &gt;= PD_period_ms</code> [i.e. the system timer]), but now a task that is constructed as an FSM may need to run <em>multiple times</em> in order to fully transition through all of its states, even though the original condition may only be true briefly. To do this, we'll need to keep track of when a task is in the middle of it's FSM (and therefore still ready to run). There are many ways to do this, but I'll show you one version, below, that keeps track of each task's "ready to run" status in an integer called <code>g_tasks</code>.</p>
+<pre>enum { A_NUM, B_NUM, C_NUM, NUM_TASKS };
+const int A_MASK = (1&lt;&lt;A_NUM);
+const int B_MASK = (1&lt;&lt;B_NUM);
+const int C_MASK = (1&lt;&lt;C_NUM);
+volatile int g_systick = 0, g_tasks = 0;
+int TaskA(void);
+int TaskB(void);
+int TaskC(void);
+void timerISR(void)
+{
+    g_systick++;
+    g_tasks |= A_MASK;
+}
+void uartISR(void)
+{
+    g_tasks |= B_MASK;
+}
+void adcISR(void)
+{
+    g_tasks |= (B_MASK | C_MASK);
+}
+void main(void)
+{
+    while(1)
+    {
+        if     ( g_tasks &amp; A_MASK ) g_tasks = TaskA() ? g_tasks|A_MASK : g_tasks&amp;(~A_MASK);
+        else if( g_tasks &amp; B_MASK ) g_tasks = TaskB() ? g_tasks|B_MASK : g_tasks&amp;(~B_MASK);
+        else if( g_tasks &amp; C_MASK ) g_tasks = TaskC() ? g_tasks|C_MASK : g_tasks&amp;(~C_MASK);
+    }
+}
+</pre>
+<p>ISRs or other tasks set the appropriate bit in the <code>g_tasks</code> variable to indicate that a task has been released. Checking to see if a task is ready to run then becomes as simple as checking if it's bit in <code>g_tasks</code> is set. Tasks have each been extracted into their own functions (<code>TaskA()</code>, etc) and each function returns a value corresponding to what the value of their flag should be, 1 for "continue running" (i.e. FSM has not yet finished) and 0 for "task is finished" or "task is waiting on another event". In this manner, each task can continue running once its been released by returning a 1 until the FSM is complete (or waiting on another event).</p>
+<h3 id="race-conditions">Dealing with Race Conditions</h3>
+<p>Now that we are modifying variables from both the ISRs and the main loop, though, we have to worry about those dreaded race conditions! Consider the awfulness of the scenario below:</p>
+<ol>
+<li>The <code>timerISR</code> runs, releasing Task A.</li>
+<li>Task A completes and returns a 0.</li>
+<li><code>g_tasks</code> is read from memory, in preparation for clearing the zeroth bit. Let's say it looks like 0b001; the main code clears the zeroth bit so 0b000 is the value stored in a register somewhere, ready to be written back to the location in memory where <code>g_tasks</code> resides.</li>
+<li>Right at that <em>exact</em> moment, the <code>uartISR</code> runs, setting the first bit in <code>g_tasks</code>. The ISR reads the original <code>g_tasks</code> value from memory (0b001) and then stores 0b011 back to memory.</li>
+<li>Execution returns to the machine instruction that is updating <code>g_tasks</code> after running Task A, only now the first <code></code>bit gets <em>cleared</em> since it wasn't set when the main code read the <code>g_tasks</code> variable in step 3!</li>
+</ol>
+<p>This means that we have a <strong>critical section</strong> every time <code>g_tasks</code> is modified by a piece of code that could be preempted by an ISR (which includes ISRs, if ISRs are preemptible!). The three most straightforward ways to protect a critical section and avoid the awfulness of above are:</p>
+<ol>
+<li>disable interrupts before the critical section (and re-enable them after),</li>
+<li>use atomic instructions (either <a href="https://en.cppreference.com/w/c/thread#Atomic_operations"><code>stdatomic.h</code></a> or compiler extensions [such as for <a href="https://gcc.gnu.org/onlinedocs/gcc/_005f_005fatomic-Builtins.html">GCC</a>]) to ensure that a variable isn't overwritten, or</li>
+<li>require that a mutex or lock be acquired prior to entering the critical section.</li>
+</ol>
+<p>Disabling interrupts is the easiest and simplest but adds to the time that an ISR is blocked, proportional to the number and length of the critical sections. Mutexes are more surgical, allowing ISRs to still run, but are non-trivial to implement and might result in an ISR effectively being ignored (if an ISR interrupts the critical section and attempts to acquire the lock but can't). Atomic instructions avoid any blocking time from disabling interrupts but they do require support from the processor, specifically a set of instructions that will abort any write to a memory location if that memory location was modified after it was previously read. These instructions are referred to generally as "load-linked" and "store-conditional" instructions. Had these instructions been used above, the write in step #5 would have failed, preserving the value of <code>g_tasks</code> that the <code>uartISR</code> wrote. The functions in <code>stdatomic</code> (available in C11/C++11 and onward) or that are provided as compiler extensions create a small loop where the memory location in question is read from (using the "load-linked" instruction), modified, and written back to until the "store-conditional" part succeeds, as can be seen on <a href="https://godbolt.org/z/o6a3ocEzY">Compiler Explorer</a>. (Of note is that the Cortex-M0/M0+ lacks this support, so that leaves you with needing to disable/re-enable interrupts on that processor to protect your critical sections, unless you want to dive into the world of lock-free data structures.) </p>
+<p>I'll use the atomic functions in <code>stdatomic.h</code> for the remainder of this series to protect the critical sections that we encounter, using either <code>atomic_fetch_or</code> or <code>atomic_fetch_and</code> to update <code>g_tasks</code>.</p>
+<pre>if( g_tasks &amp; A_MASK ) TaskA() ? atomic_fetch_or(&amp;g_tasks, A_MASK) : atomic_fetch_and(&amp;g_tasks, (~A_MASK));
+</pre>
+<p>There's actually <strong></strong><strong><em>another</em></strong> race condition that's been present this whole time which we haven't dealt with yet, too: the reading of <code>g_systick</code> or <code>g_task</code> by one of the tasks. If the number of bits in these globals is more than the width of our processor (meaning that reading <code>g_systick</code> or <code>g_task</code> would take more than one memory operation, one to read first the high byte and then another to read the low byte, for example) then we have to contend with the following:</p>
+<ol>
+<li>A task reads the high byte of <code>g_systick</code>. Say <code>g_systick</code> is 0x0000FFFF, so 0x0000 is read.</li>
+<li>The timer ISR runs at that <em>exact moment</em>, incrementing <code>g_systick</code> to 0x00010000.</li>
+<li>Execution returns to the task which reads the lower byte of <code>g_systick</code> which is now <em>0x0000</em>! The task gets the value of 0x00000000, which is very incorrect!</li>
+</ol>
+<p>This is a type of race condition called a "torn read". To ensure that any value of a global variable we read is a valid one, your options are the same as above (disable interrupts before and re-enable them after reading the variable or use an atomic function such as <code>atomic_load</code> from the <code>stdatomic</code> library); you can also use the following snippet of code, which essentially works by reading <code>g_systick</code> until two subsequent reads have the same value, assuming that it won't have been updated by any ISR if it holds the same value two times in a row.</p>
+<pre>int systick_val;
+do
+{
+    systick_val = g_systick;
+} while ( systick_val != g_systick );
+</pre>
+<p>Additionally, there's <strong></strong><strong><em>still one more</em></strong> race condition to consider!! Imagine the following sequence of events, using the task above that read from a sensor and sent out the running average over a different network:</p>
+<ol>
+<li>The task executes its first state: reading the sensor, sending it out, and changing it's state variable to WAITING_FOR_ACK. It returns a 0 to the main loop to clear its ready flag, indicating that it shouldn't run again until some event causes it to be released (such as an acknowledgement being received).</li>
+<li>Before the task's ready flag gets cleared in the main loop, the acknowledgement is received, setting the task's ready flag (which is still 1 from the event that caused the task to run just now).</li>
+<li>The task returns and tells the main loop to clear its ready flag. Now it's waiting for an event that has already occurred!</li>
+</ol>
+<p>(Sidenote: Isn't it a pain to have to identify and handle all of the possible race conditions with this <em>small</em> chunk of code and only <em>two</em> shared variables? Can you imagine trying to get all of this correct with a preemptive RTOS, when <em>any</em><span class="redactor-invisible-space"> task can interrupt <em>any</em><span class="redactor-invisible-space"> lower-priority task in between <em>any</em><span class="redactor-invisible-space"> of its machine instructions, many of which can be <em>reordered</em> around each other by either the compiler or the processor itself?!)<br></span></span></span></p>
+<p>Anyway, there are probably multiple solutions to this problem, but the simplest one to me is to clear each task's ready flag before it runs and only allow it to be <strong>set </strong>afterwards, if the task needs to run again.</p>
+<pre>if( g_tasks &amp; A_MASK )
+{
+    atomic_fetch_and(&amp;g_tasks, (~A_Mask));
+    if( TaskA() ) atomic_fetch_or(&amp;g_tasks, A_MASK);
+}
+</pre>
+<p>Any event that releases the task up to the point where <code>atomic_fetch_and</code> successfully writes to <code>g_tasks</code> should get handled when the task runs. Any event that releases the task <em>after </em>the ready flag is cleared may or may not be handled when the task runs, but since the task is only allowed to <em>set </em>its ready flag after its completes (not clear it), then even if that event isn't handled on the current invokation of the task, the task will run at least once more before the system goes to sleep or handles a lower-priority task, ensuring that the event will eventually be handled. (There isn't a way for the scheduler to know if an event arrives out of order [e.g. if an acknowledgement arrived before the sensor data was sent out!], so each task will have to handle that synchronization on their own.)</p>
+<p>So the "Superduperloop" should <em>really </em>look like this:</p>
+<pre>enum { A_NUM, B_NUM, C_NUM, NUM_TASKS };
+const int A_MASK = (1&lt;&lt;A_NUM);
+const int B_MASK = (1&lt;&lt;B_NUM);
+const int C_MASK = (1&lt;&lt;C_NUM);
+volatile int g_systick = 0, g_tasks = 0;
+int TaskA(void);
+int TaskB(void);
+int TaskC(void);
+void timerISR(void)
+{
+    g_systick++;
+    atomic_fetch_or(&amp;g_tasks, A_MASK);  // Assuming ISRs are preemptible. Otherwise
+                                        // "g_tasks |= A_MASK;" is fine.
+}
+void uartISR(void)
+{
+    atomic_fetch_or(&amp;g_tasks, B_MASK);  // Assuming ISRs are preemptible
+}
+void adcISR(void)
+{
+    atomic_fetch_or(&amp;g_tasks, B_MASK|C_MASK);  // Assuming ISRs are preemptible
+}
+void main(void)
+{
+    while(1)
+    {
+        if( g_tasks &amp; A_MASK )
+        {
+            atomic_fetch_and(&amp;g_tasks, (~A_Mask));
+            if( TaskA() ) atomic_fetch_or(&amp;g_tasks, A_MASK);
+        }
+        else if( g_tasks &amp; B_MASK )
+        {
+            atomic_fetch_and(&amp;g_tasks, (~B_Mask));
+            if( TaskB() ) atomic_fetch_or(&amp;g_tasks, B_MASK);
+        }
+        else if( g_tasks &amp; C_MASK )
+        {
+            atomic_fetch_and(&amp;g_tasks, (~C_Mask));
+            if( TaskC() ) atomic_fetch_or(&amp;g_tasks, C_MASK);
+        }
+    }
+}
+</pre>
+<p>Tedious, I know, but it's the price we pay for preemption. If you can make your system work without ISRs, then you can avoid all but the last&nbsp;of these critical sections altogether!</p>
+<h3 id="schedulability-superduperloop">Schedulability of the "Superduperloop" with FSMs</h3>
+<p>Okay, NOW what's the worst thing that could happen to block a task from running? The worst-case scenario is the same as for the <a href="#eq-2">superloop with task priorities and interrupts</a>, except that, now, higher-priority tasks have the chance of running all the way until the start of the last FSM state.</p>
+<p>For the "superloop with task priorities and interrupts", no higher priority task was allowed to run after the task in question started executing (since the superloop is a cooperative scheduler, not a preemptive scheduler). You can see this from 7 to 9 usec in the sequence diagram, when Task C was allowed to run uninterrupted. For the updated "Superduperloop",&nbsp;since the task in question may return in between each state higher priority tasks are allowed to run all the way until the start of the <em>final state</em> of the task in question (of course, this is exactly what we wanted to happen!). This might look like the sequence diagram below. Notice now how higher priority tasks are allowed to run all the way until 11 usec, at the start of the final state for Task C (assuming that Task C has a total of 3 states).</p>
+<figure><center><img src="https://imgur.com/dBAV07B.png" height="200"></center></figure>
+<p>We can represent this mathematically by changing the numerator in the second term of equation <a href="#eq-2">2</a> (which described the total length of time that the higher-priority tasks could run) from <em>WCRT<sub>j</sub> - WCET<sub>j</sub></em> to <em>WCRT<sub>j</sub> - WCET<sub>j,Final state</sub></em>, which is the execution time of the last state in Task j's FSM. (If Task j isn't an FSM, then this term devolves back into <em>WCRT<sub>j</sub> - WCET<sub>j</sub></em>.)</p>
+<p id="eq-5">$$WCRT_j = max(WCET_{i \in i&gt;j}) + \sum_{i=N}^{j-1} ( {\left \lceil \frac {WCRT_j - WCET_{j,Final state}} {P_i} \right \rceil \cdot WCET_i} ) + \sum_{i=0}^{N-1} ( {\left \lceil \frac {WCRT_j} {P_i} \right \rceil \cdot WCET_i} ) + WCET_j \tag{5}$$</p>
+<h3 id="protothreads-and-coroutines-in-c">Cool Projects to Check Out: Protothreads and "Coroutines in C"</h3>
+<p>If you're getting tired of writing long FSMs and don't feel squeamish about strange uses of the C language, then you might be interested in checking out either the <a href="https://dunkels.com/adam/pt/index.html">Protothreads</a> project or the article <a href="https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html">"Coroutines in C"</a>, which both make writing FSMs easier by wrapping all of the <code>switch...case</code> syntax above into several function-like macros. For example, here's what the task above (that was reading a sensor and sending out an updated value for the running average) would look like in Protothreads:</p>
+<pre>PT_THREAD(TaskA(struct pt *pt))
+{
+    PT_BEGIN(pt);
+    PT_WAIT_UNTIL( pt, lockSPI() );
+    readSensor1();        // Sensor 1 is on the SPI bus
+    unlockSPI();
+    txNewRunningAvg();    // Compute running average
+    PT_WAIT_UNTIL( pt, /* Ack received */ );
+    PT_RESTART(pt);
+    PT_END(pt);
+}
+</pre>
+<p>Clean, isn't it? And here's what it would look like after the C preprocessor has had a chance to expand all of those macros:</p>
+<pre>char TaskA(struct pt *pt)
+{
+    char PT_YIELD_FLAG = 1;
+    switch((pt)-&gt;lc)
+    {
+        case 0:
+            do
+            {
+                (pt)-&gt;lc = 7;
+        case 7:
+                if(!(lockSPI())) { return 0; }
+            } while(0);
+            readSensor1();
+            unlockSPI();
+            txNewRunningAvg();
+            do
+            {
+                (pt)-&gt;lc = 11;
+        case 11:
+                if(!(ack())) { return 0; }
+            } while(0);
+            do
+            {
+                (pt)-&gt;lc = 0;
+                return 0;
+            } while(0);
+    };
+    PT_YIELD_FLAG = 0;
+    (pt)-&gt;lc = 0;
+    return 3;
+}
+</pre>
+<p>The <code>PT_BEGIN</code> and <code>PT_END</code> macros just form the beginning and end of a <code>switch...case</code> statement. The <code>PT_WAIT_</code> macros insert new case statements and set the internal state variable (which is <code>pt-&gt;lc</code>) accordingly so that the next time the task is called it jumps to that same case statement. The <code>PT_RESTART</code> macro starts the FSM back at the top, with the line of code just below <code>PT_BEGIN</code>. Protothreads is a neat project and even includes support for a basic form of semaphores, so we may look at it again in the future!</p>
+<h2 id="going-to-sleep">Bonus change!: Going to Sleep</h2>
+<p>Okay, so I've been ducking the question for nearly two full articles now: "What happens when there's no work to be done?? When does my application go to sleep??" Truth be told, I've been waiting until we'd been able to discuss the "Superduperloop", since analyzing the schedulability of any of the earlier superloop variations gets weird if the scheduler has the ability to go to sleep at some point. Thankfully, at this point, going to sleep is a simple change and does not affect the schedulability analysis we've done so far of the "Superduperloop".</p>
+<p>Our "Superduperloop" should go to sleep <em>only</em> when there's no work to be done. This would occur exactly if none of the <code>if</code>/<code>else if</code> expressions were true and the <code>if</code> statement were to try to execute an <code>else</code> block. So that's where we'll put our code to go to sleep! </p>
+<pre>if( g_tasks &amp; A_MASK )      { ... }
+else if( g_tasks &amp; B_MASK ) { ... }
+else if( g_tasks &amp; C_MASK ) { ... }
+else /* Go to sleep here */;
+</pre>
+<p>The "go to sleep" code needs to be a <em>touch</em> more complicated than just inserting a <code>wfi();</code> or similar piece of code. The problem we want to avoid is the (admittedly unlikely, but still possible) case when, in between checking the last expression and then going to sleep, an interrupt runs and releases a task. This would result in a task being ready to run but the system going to sleep anyways! To avoid this, we'll use something called a "double-checked lock".</p>
+<pre>if( g_tasks &amp; A_MASK )      { ... }
+else if( g_tasks &amp; B_MASK ) { ... }
+else if( g_tasks &amp; C_MASK ) { ... }
+else
+{
+    if( !g_tasks )
+    {
+        disableInterrupts();
+        if( !g_tasks ) wfi();
+        enableInterrupts();
+    }
+}
+</pre>
+<p>The double-checked lock first checks if any task is ready to run and then, if none are, disables all interrupts, preventing any ISRs from running (but still letting them pend). (Checking the lock the first time isn't strictly required, but it does save us the trouble of disabling and immediately re-enabling interrupts if there's a task that's ready to run.) The <code>g_tasks</code> variable is checked a second time (just to make sure that no ISR released a task right before interrupts were disabled) and then, as long as no task is ready to run, the system goes to sleep. The code used to put the processor to sleep should return immediately if there are any pending ISRs (to catch the <em>just as unlikely</em> but still possible case that an ISR pended (but didn't run) after interrupts were disable) but otherwise allow the processor to go to sleep. Once asleep, the processor should wake up for any pending ISR, which will get to run immediately once interrupts are re-enabled. Then the scheduler loop will start again from the top.</p>
+<h2 id="time-triggered-scheduler">Alternative Design: The Time-triggered Scheduler</h2>
+<p>The "Superduperloop" is a very capable scheduler (if I do say so myself!), but even <em>it</em> can't schedule certain task sets that seem like they <em>should</em> be schedulable. Consider the task set, below, for instance.</p>
+<center>
+<table border="1">
+<tbody>
+<tr>
+<th>Task</th>
+<th>Execution time (us)</th>
+<th>Period (us)</th>
+<th>Deadline (us)</th>
+</tr>
+<tr align="center">
+<td>A</td>
+<td>1</td>
+<td>5</td>
+<td>5</td>
+</tr>
+<tr align="center">
+<td>B</td>
+<td>8</td>
+<td>10</td>
+<td>10</td>
+</tr>
+</tbody>
+</table>
+</center>
+<p>Utilization is the highest it could be, 100%, but shouldn't this still be schedulable? Doesn't the sequence diagram below prove it?</p>
+<figure><center><img src="https://imgur.com/dUO9onw.png" height="120"></center></figure>
+<p>Unfortunately, the answer is "no"! (Or perhaps it's <em>fortunate</em> that the answer is "no"? Otherwise our schedulability analyses would be all wrong!) Remember that the WCET for a task is its <em>worst-case</em> execution time; many times the task will actually run much faster. Consider the possibility that the second iteration of Task A above took only 0.999... usec to run instead of the full 1 usec. The "Superduperloop" would return to the top of the <code>for</code> loop and start looking for the next ready to run task. Suppose that Task A finished early enough that, on this next pass, the timer <em>hadn't</em> incremented yet and Task A <em>wasn't</em> ready to run. Suppose then that, <em>immediately</em> after this, the timer <em>did</em> increment and Task B became ready to run. Then <em>it</em> would be executed, taking its full 8 usec, causing Task A to miss it's deadline! What a bummer! This result, though, <em>does</em> agree with our WCRT analysis from Part 1 of this series.</p>
+<figure><center><img src="https://imgur.com/XoUowcO.png" height="160"></center></figure>
+<p>So what's a designer to do if we have a system that <em>looks</em> schedulable but isn't, based on the math? One option is to manually insert idle times that force the scheduler to stick to a schedule that we know works, like "Run Task A for 1 usec (going to sleep if it finishes early), then Task B for 8 usec (again going to sleep if necessary), and lastly Task A again for 1 usec (going to sleep again as necessary)". This is called a <strong>time-triggered</strong> scheduler or a scheduler with <strong>inserted idle times</strong>. Using this type of scheduler, the sequence diagram might look as sparse as below, but the trade-off is that we <em>know</em> when each task will run and that the system can be made to be schedulable. Implementation of this type of scheduler is left as an exercise for the reader.</p>
+<figure><center><img src="https://imgur.com/CBqinOL.png" height="160"></center></figure>
+<p>The biggest problem with this scheduler is that you'll need to specify exactly which task needs to run for the length of the <strong>hyperperiod</strong>, which is the least common multiple of all of the task periods. This is the period over which each of the task's releases repeat themselves, so defining which task is running over the entire hyperperiod allows the system to be fully defined. It's <em>not</em> particularly feasible to do that if the hyperperiod is large, which is not hard to do even for a small number of tasks if their periods are very unrelated. For example, the hyperperiod of tasks with periods of 5, 11, and 23 usec is 1,265 usec!</p>
+<h2 id="in-the-blue-corner">"In the blue corner...!"</h2>
+<p>We might have compared superloops and RTOSes in the last article, but that wasn't a fair fight! Let's give the RTOS a run for it's money by doing a side-by-side with the "Superduperloop".</p>
+<table border="1">
+<tbody>
+<tr>
+<td style="text-align: center;"><strong>"</strong><strong>Superduperloop" </strong></td>
+<td style="text-align: center;"><strong>RTOS </strong></td>
+</tr>
+<tr valign="top">
+<td>
+<pre>// One enum value and bitmask per task, e.g.
+enum { A_NUM, B_NUM, NUM_TASKS };
+const int A_MASK = (1&lt;&lt;A_NUM);
+const int B_MASK = (1&lt;&lt;B_NUM);
+// Function prototypes for tasks here, e.g.
+int TaskA(void);
+int TaskB(void);
+volatile int g_systick = 0, g_tasks = 0;
+void timerISR(void)
+{
+    g_systick++;
+    // Release a task using, e.g.
+    // atomic_fetch_or(&amp;g_tasks, A_MASK);  // Assuming ISRs are preemptible. Otherwise
+                                           // "g_tasks |= A_MASK;" is fine.
+}
+void main(void)
+{
+    while(1)
+    {
+        // One if/else if block per task, higher priority tasks located
+        // higher up in the chain of if statements.
+        //        
+        if( g_tasks &amp; A_MASK )
+        {
+            atomic_fetch_and(&amp;g_tasks, (~A_Mask));
+            if( TaskA() ) atomic_fetch_or(&amp;g_tasks, A_MASK);
+        }
+        else if( g_tasks &amp; B_MASK )
+        {
+            atomic_fetch_and(&amp;g_tasks, (~B_Mask));
+            if( TaskB() ) atomic_fetch_or(&amp;g_tasks, B_MASK);
+        }
+        else
+        {
+            if( !g_tasks )
+            {
+                disableInterrupts();
+                if( !g_tasks ) wfi();
+                enableInterrupts();
+            }
+        }
+    }
+}
+        </pre>
+</td>
+<td>
+<pre>void main(void)
+{
+    taskCreate(TaskA, 0);  // Priority 0 (highest)
+    taskCreate(TaskB, 1);  // Priority 1
+    taskCreate(TaskC, 2);  // Priority 2
+    startScheduler();      // No return
+}
+void TaskA(void)
+{
+    while(1)
+    {
+        // Task A
+    }
+}
+void TaskB(void)
+{
+    while(1)
+    {
+        // Task B
+    }
+}
+void TaskC(void)
+{
+    while(1)
+    {
+        // Task C
+    }
+}
+void onIdle(void)
+{
+    wfi();
+}
+        </pre>
+</td>
+</tr>
+<tr>
+<td>Tasks:<br>$ \quad WCRT_{j \ge N} = max(WCET_{i \in i&gt;j}) + \sum_{i=N}^{j-1} ( {\left \lceil \frac {WCRT_j - WCET_{j,Final state}} {P_i} \right \rceil \cdot WCET_i} ) \quad $<br>$ \quad + \sum_{i=0}^{N-1} ( {\left \lceil \frac {WCRT_j} {P_i} \right \rceil \cdot WCET_i} ) + WCET_j \quad $</td>
+<td>Tasks:<br>$ \quad WCRT_{j \ge N} = \sum_{i=0}^{j-1} ( {\left \lceil \frac {WCRT_j} {P_i} \right \rceil \cdot WCET_i} ) + WCET_j \quad $</td>
+</tr>
+<tr>
+<td>ISRs: see equations <a href="#eq-3-and-4">3 and 4</a></td>
+<td>ISRs: see equations <a href="https://www.embeddedrelated.com/new2/submitblog.php#eq-3-and-4">3 and 4</a></td>
+</tr>
+<tr>
+<td>Optimal priority assignments:<br>
+<ul>
+<li>DMS</li>
+<li>Exhaustive search</li>
+<li>Audsley's algorithm</li>
+</ul>
+</td>
+<td>Optimal priority assignments: DMS</td>
+</tr>
+</tbody>
+</table>
+<p>(If the chain of <code>if</code> statements is hurting your soul at this point, I encourage you to rewrite this little scheduler using a <code>for</code> loop that iterates over a list of prioritized tasks instead! It's a great exercise.)</p>
+<p>It's fascinating to me that, despite the WCRT equation for the RTOS having fewer terms, there's <em>nothing</em> to indicate that it is <em>always</em> a smaller value than for the "Superduperloop"! In fact, for some task sets, the "Superduperloop" <em>works</em> when the RTOS <em>doesn't</em>! Let's take a look at that situation, shall we?</p>
+<h3 id="curious-case">The Curious Case of the "Superduperloop" Besting an RTOS!!</h3>
+<p>Sometimes the fact that a scheduler <em>can't</em> preempt a lower-priority task is actually an <em>advantage</em>, instead of a liability. Consider the task set below.</p>
+<center>
+<table border="1">
+<tbody>
+<tr>
+<th>Task</th>
+<th>Priority</th>
+<th>Execution time (us)</th>
+<th>Period (us)</th>
+<th>Deadline (us)</th>
+<th>WCRT (RTOS)</th>
+<th>WCRT (Superduperloop)</th>
+</tr>
+<tr align="center">
+<td>A</td>
+<td>0</td>
+<td>$2 - \sqrt 2$</td>
+<td>1</td>
+<td>1</td>
+<td>$2 - \sqrt 2$</td>
+<td>1</td>
+</tr>
+<tr align="center">
+<td>B</td>
+<td>1</td>
+<td>$\sqrt 2 - 1$</td>
+<td>10</td>
+<td>$\sqrt 2$</td>
+<td>1</td>
+<td>$\sqrt 2$</td>
+</tr>
+<tr align="center">
+<td>C</td>
+<td>2</td>
+<td>$\sqrt 2 - 1$</td>
+<td>10</td>
+<td>$\sqrt 2$</td>
+<td><strong>2!!</strong></td>
+<td>$\sqrt 2$</td>
+</tr>
+</tbody>
+</table>
+</center>
+<p>Using an RTOS, this task set&nbsp;<strong></strong><strong><em>isn't schedulable</em></strong>! Task A preempts Task C at 1 usec owing to its higher priority, causing Task C to miss its deadline. Bummer!</p>
+<figure><center><img src="https://imgur.com/gfyxlEp.png" height="160"></center></figure>
+<p><em>However</em>, it <strong>is</strong> schedulable using the "Superduperloop"!! Because Task C <em>can't</em> be preempted, it finishes before its deadline, leaving Task A enough time to also finish before <em>it's</em> deadline. Success!</p>
+<figure><center><img src="https://imgur.com/u7gteaB.png" height="160"></center></figure>
+<p>This isn't a fluke, either; it's the result of the two WCRT equations above being different enough that <em>neither</em> is universally larger or smaller than the other. Some task sets will be schedulable using the "Superduperloop" but not the RTOS, some will be schedulable using the RTOS but not the "Superduperloop", and some task sets will be schedulable with either or neither. You'll simply need to check to see which, if either, of the two schedulers will work for your task set. Superloops, it turns out, aren't something you outgrow when you leave school and move on to more advanced embedded system projects; they might very well be the only scheduler that allows your system to work!</p>
+<h2 id="rios">Cool Project to Check Out: RIOS</h2>
+<p>RIOS ("Riverside-Irvine Operating System") is a project to come out of the University of California, Riverside, and University of California, Irvine, aimed at building the smallest, capable cooperative and preemptive schedulers possible for the purposes of teaching students how operating systems work (not unlike what we're trying to do here!). The cooperative version of their scheduler (below) actually looks a lot like the "Superduperloop"!</p>
+<figure><center><img src="https://imgur.com/zPf6kHQ.png" height="400"></center></figure>
+<p>The biggest exception is probably that tasks in RIOS are <em>all</em> periodic, while the "Superduperloop" is designed to handle event-driven tasks also. They also handle integer rollover slightly differently than we did in the first article, by keeping track of each tasks' elapsed time and resetting that value to 0 every time the task gets run.</p>
+<p>The team also managed to write a preemptive RTOS in about two dozen lines of code, which is definitely worth a look. You can read more about RIOS in their <a href="https://ics.uci.edu/~givargis/pubs/C50.pdf">original paper</a> or at a university-hosted <a href="https://www.cs.ucr.edu/~vahid/rios/">website</a>.</p>
+<h2 id="whats-missing">What's Missing from the "Superduperloop"?</h2>
+<p>Our cooperative scheduler has met the original goal of having comparable WCRTs to that of an RTOS while (almost) completely avoiding the possibility of race conditions. The <em>last</em> edge that the RTOS has over us is its OS primitives: mutexes, semaphores, message queues, stream buffers, event flags, and thread flags (depending on which RTOS you're using). When tasks <em>do</em> interact, these tools are extremely useful for synchronizing and coordinating those interactions. In particular, our current system of task triggering is pretty limited. It's kind of like each task has a thread flag that's only 1 bit wide: the task can block on just this one trigger and when it finally does run it has to check which, of possibly multiple, events was the one that triggered it.</p>
+<p>It's to this problem that we'll turn our attention to next. Adding these synchronization and triggering mechanisms to the "Superduperloop" is not all that hard so we'll take a look at how to do that in the next article. Additionally, we'd be remiss not to consider what other projects (commercial or open-source) are available to us that have already solved these problems. By the end of that third article, I hope you have, not one, but several implementation options for the "Superduperloop" (or similar) that are fully competitive with whatever RTOS you are currently using or were planning to use in the future.</p>
+<h2 id="summary">Summary</h2>
+<p>In this article, we improved on the simple superloop by adding task priorities, interrupts, and FSMs to create a thing I'm calling the <strong></strong><strong>Superduperloop</strong> (a.k.a. the <strong>fixed-priority, non-preemptive scheduler</strong>). The "Superduperloop" is a cooperative scheduler that has a WCRT for most tasks that comes close to the WCRT of a preemptive RTOS (or even exceeds it!), making it highly suitable for scheduling many embedded applications. It's simple enough to write in a few dozen lines of code and it eliminates the possibility of race conditions (ISRs notwithstanding), making it</p>
+<ul>
+<li>simple to understand,</li>
+<li>robust,</li>
+<li>incredibly small (RAM- and Flash-wise),&nbsp;</li>
+<li>and eminently portable.</li>
+</ul>
+<p>It <em>doesn't</em>, unfortunately, have many useful OS primitives such as mutexes, semaphores, message queues, stream buffers, event flags, or thread flags. Most of these are not difficult to add to the "Superduperloop" but also there are some notable commercial and open-source projects that have tackled that problem already. Stay tuned, my friends, when we turn the "Superduperloop" into a fully-fledged cooperative OS in the next two articles in this series!</p>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="https://betterembsw.blogspot.com/2015/12/multi-rate-main-loop-tasking.html">Multi-Rate Main Loop Tasking</a> ("Better Embedded System SW" blog) by Philip Koopman</li>
+<li><a href="https://www.amazon.com/Better-Embedded-System-Software-Koopman/dp/0984449000">Better Embedded System Software</a> by Philip Koopman</li>
+<li><a href="https://www.amazon.com/Embedded-Systems-Fundamentals-Cortex-M-Microcontrollers/dp/1911531034">Embedded Systems Fundamentals with ARM Cortex-M based Microcontrollers</a>, Chapter 3, by Alexander Dean</li>
+<li>Davis, R. I., Cucu-Grosjean, L., Bertogna, M., &amp; Burns, A. (2016). A review of priority assignment in real-time systems. <i>Journal of Systems Architecture</i>, <i>65</i>, 64&ndash;82. <a href="https://doi.org/10.1016/j.sysarc.2016.04.002">https://doi.org/10.1016/j.sysarc.2016.04.002</a></li>
+<li>A lot of my notes come from taking Professor Alex Dean's classes at NC State: ECE560 (Embedded Systems Architectures) and ECE561 (Embedded Systems Design/"Optimization"). His course notes reference, among others, the following articles and books:
+<ul>
+<li>George, L., Rivierre, N., &amp; Spuri, M. (1996). <a href="https://www.rocq.inria.fr/novaltis/research_reports/RR-2966.pdf"><em>Technical Report RR-2966: Preemptive and Non-preemptive Real-time Uniprocessor Scheduling.</em></a> INRIA.</li>
+<li>Sha, L., Abdelzhaer, T., Arzen, K.-E., Cervin, A., Baker, T., Burns, A., et al. (2004, November-December). <a href="https://www.researchgate.net/publication/220414198_Real_Time_Scheduling_Theory_A_Historical_Perspective">Real Time Scheduling Theory: A Historical Perspective.</a> <em>Real Time Systems</em>, 28(2-3), 101-155.</li>
+<li>Davis, R. I., Thekkilakattil, A., Gettings, O., Dobrin, R., Punnekkat, S., &amp; Chen, J.-J. (2017). Exact speedup factors and sub-optimality for non-preemptive scheduling. <i>Real-Time Systems</i>, <i>54</i>(1), 208&ndash;246. <a href="https://doi.org/10.1007/s11241-017-9294-3">https://doi.org/10.1007/s11241-017-9294-3</a></li>
+<li><a href="https://www.amazon.com/Real-Time-Systems-Programming-Languages-International/dp/0321417453">Real-time Systems and Programming Languages</a> by Alan Burns and Andy Wellings</li>
+<li><a href="https://www.amazon.com/Practitioners-Handbook-Real-Time-Analysis-Electronic/dp/0792393619">A Practitioner's Guide Handbook for Real-time Analysis</a> by Klein, Ralya, Pollak, Obenza, and Harbour.</li>
+</ul>
+</li>
+</ul>

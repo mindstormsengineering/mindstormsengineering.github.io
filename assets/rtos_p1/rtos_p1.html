@@ -1,0 +1,397 @@
+<h1>You Don't Need an RTOS (Part 1)</h1>
+<p>by Nathan Jones</p>
+<img src="/home/nathancharlesjones/Documents/Work/llc_assets/logo_full.png" width="300">
+<p>At least, probably not as often as you think you do. Using a preemptive RTOS ("real-time operating system") can help make a system schedulable (i.e. help all of its tasks meet their deadlines) but it comes at a cost: "concurrently" running tasks can interact in unforeseen ways that cause system failures, that dreaded class of errors known as "race conditions". In part, this is because humans have difficulty thinking about things that happen concurrently. Using the venerable superloop can help avoid this problem entirely and, in some cases, it can actually make a system work that wouldn't work at all using an RTOS! Additionally, a "superloop" style scheduler has the benefit of being simple enough for you to write yourself in a few dozen lines of code.</p>
+<p>If you're unfamiliar with terms like "deadlines", "schedulability", or "worst-case response time", then I would argue you are almost <em>definitely</em> using an RTOS prematurely! If you <em>are</em> familiar with those terms, allow me to show you a few ways to improve the superloop that bring its performance nearly on par with an RTOS, with no concern about race conditions.</p>
+<p><em>This is the first in a series of posts lauding the advantages of the simple "superloop" scheduler. Subsequent articles will be linked below as they are published</em></p>
+<ul>
+<li>Part 1: Comparing Superloops and RTOSes (this article)</li>
+<li><a href="https://www.embeddedrelated.com/showarticle/1652.php">Part 2: The "Superduperloop"</a></li>
+<li><a href="https://www.embeddedrelated.com/showarticle/1653.php">Part 3: Other Cool Superloops and DIY IPC</a></li>
+<li><a href="https://www.embeddedrelated.com/showarticle/1662.php">Part 4: More DIY IPC</a></li>
+</ul>
+<h2>Contents</h2>
+<ul>
+<li><a href="#comparing-superloops-and-rtoses">Part 1: Comparing Superloops and RTOSes</a></li>
+<li><a href="#the-problem-with-concurrency">The Problem with Concurrency</a>
+<ul>
+<li><a href="#concurrency-references">References</a></li>
+</ul>
+</li>
+<li><a href="#in-the-red-corner">"In the red corner...!"</a></li>
+<li><a href="#definition-time">Definition Time</a></li>
+<li><a href="#critical-assumptions">Critical Assumptions</a></li>
+<li><a href="#schedulability-of-a-superloop">Schedulability of a Superloop</a></li>
+<li><a href="#measuring-wcet">Measuring WCET</a>
+<ul>
+<li><a href="#using-a-logic-analyzer-or-oscilloscope">Using a logic analyzer or oscilloscope</a></li>
+<li><a href="#using-a-serial-converter-or-debug-adapter">Using a serial converter or debug adapter</a></li>
+</ul>
+</li>
+<li><a href="#schedulability-of-an-rtos">Schedulability of an RTOS</a>
+<ul>
+<li><a href="#assigning-task-priorities">Assigning Task Priorities</a></li>
+<li><a href="#the-utilization-test-and-harmonic-rate-monotonic-scheduling">The Utilization Test and Harmonic Rate Monotonic Scheduling</a></li>
+</ul>
+</li>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#references">References</a></li>
+</ul>
+<h2 id="comparing-superloops-and-rtoses">Part 1: Comparing Superloops and RTOSes</h2>
+<p>In this first article, we'll compare our two contenders, the superloop and the RTOS. We'll define a few terms that help us describe exactly what functions a scheduler does and why an RTOS can help make certain systems work that wouldn't with a superloop. By the end of this article, you'll be able to:</p>
+<ul>
+<li>Measure or calculate the deadlines, periods, and worst-case execution times for each task in your system,</li>
+<li>Determine, using either a response-time analysis or a utilization test, if that set of tasks is schedulable using either a superloop or an RTOS, and</li>
+<li>Assign RTOS task priorities optimally.</li>
+</ul>
+<h2 id="the-problem-with-concurrency">The Problem with Concurrency</h2>
+<p>Allow me to begin by establishing why we should care: the majority of humans (anywhere from 98-99%) <strong>can't</strong> multitask. (To borrow a line from one of my favorite books, "Statistically, that number includes you. That's how statistics works.") We don't think concurrently, we think <em>sequentially</em>. Maybe that's what makes us such great coders and so poor at thinking about all of the ways that our code can possibly interact with itself. Using a preemptive RTOS (and absent any special precautions), a task could be preempted in between <em>any two</em> of its machine instructions by <em>any</em> higher-priority task. The interactions are too numerous to count and in some small, but non-zero, number of cases this has the potential of causing system errors. These errors, by the fact that they only occur if a certain task gets preempted by another task in <em>juuuust</em> the right spot, are called "race conditions" and they're notoriously difficult to diagnose. Better to avoid them entirely, if we can.</p>
+<p>Here are a few examples to help prove my point. The code below (modeling a bank transaction) exhibits a race condition; can you find it?</p>
+<pre>transfer1 (amount, account_from, account_to)
+{
+    if (account_from.balance &lt; amount) return NOPE;
+    account_to.balance += amount;
+    account_from.balance -= amount;
+    return YEP;
+}
+</pre>
+<p>Answer: The lines of code that add or subtract <code>amount</code> will be implemented as "read-modify-write" operations on all load-store processors (which is most of them). Imagine the case where <code>account_to.balance</code> is 500 and <code>amount</code> is 100. The task running this code would first load 500 into a register and add 100 to it, yielding 600. Further, imagine that a higher-priority task is allowed to run <em>at that exact moment</em> which adds 200 to that same account; the value in memory would be 700 once the higher-priority task finished. Once the lower-priority task is returned to, it then <em>overwrites</em> the value of 700 with 600 (the value in its register)!</p>
+<p>The code below (a snippet from a module that implements a Singleton object) also has a race condition; can you find it?</p>
+<pre>if (!initialized)
+{
+    object = create();
+    initialized = true;
+}
+... object ...
+</pre>
+<p>Answer: If a task which is attempting to create the Singleton object is preempted <em>after</em> the object was created but <em>before</em> the flag variable is set to <code>true</code> by a higher-priority task which, <em>itself</em>, tries to create the Singleton object, then your system now has two Singletons!</p>
+<p>Say we try to fix this code using a mutex, like below. No luck! This code <em>still</em> has a race condition in it! But where?</p>
+<pre>if (!initialized)
+{
+    lock();
+    if (!initialized)
+    {
+        object = create();
+        initialized = true;
+    }
+    unlock();
+}
+... object ...
+</pre>
+<p>Answer: The problem comes from optimizing compilers which, seeing that there doesn't seem to be a relationship between the lines of code that create the Singleton object and that set the flag variable to <code>true</code>, may, in the interest of speed or code size or whatever, hoist the setting of the flag variable <em>above</em> the creating of the Singleton object. In that case, it's possible that a task is executing this code and is preempted <em>after</em> the flag variable is set to <code>true</code> but <em>before</em> the Singleton object is created. The currently-running higher-priority task would then be blocked from creating the Singleton object and would, instead, go on to use an object that hadn't yet been created!</p>
+<p>It's particularly interesting to me that there would be <strong>no race conditions</strong> in any of the examples above if there was simply no preemption in those systems; using a superloop scheduler as opposed to an RTOS would have literally eliminated the race conditions. This means, to me, that <strong>a preemptive RTOS should be used <em>only</em> when it's deemed to be absolutely necessary</strong>, when a superloop scheduler is demonstrably insufficient for the application in question. And if it is, special precautions need to be taken to help prevent possible race conditions (but that's a discussion for another article!).</p>
+<h3 id="concurrency-references">References</h3>
+<ul>
+<li><a href="https://www.grammatech.com/learn/fun-with-concurrency-problems/">Fun with Concurrency Problems</a> by Paul Anderson</li>
+<li><a href="https://covemountainsoftware.com/2020/06/21/the-anatomy-of-a-race-condition/amp/">The Anatomy of a Race Condition</a> by Matthew Eshleman</li>
+<li><a href="https://blog.regehr.org/archives/490">Race Condition vs. Data Race</a> by John Regehr</li>
+<li><a href="https://www.baeldung.com/cs/race-conditions">What is a race condition?</a> by baeldung</li>
+<li><a href="https://embeddedartistry.com/fieldmanual-terms/race-condition/">Race conditions</a> (Embedded Artistry Field Atlas entry)</li>
+</ul>
+<h2 id="in-the-red-corner">"In the red corner...!"</h2>
+<p>Okay, let's have a look at our two contenders! The table below shows how you might program an embedded system using both a superloop and an RTOS. The hypothetical system in question is using a PD (proportional-derivative) closed-loop controller to control "something" and is also implementing some kind of serial interface (to allow the developers to read and modify data as this system is running).</p>
+<table>
+<tbody>
+<tr>
+<th>Superloop</th>
+<th>RTOS</th>
+</tr>
+<tr valign="top">
+<td>
+<pre>volatile unsigned int g_systick = 0;
+void timerISR(void) // Runs every 1 ms
+{
+    g_systick++;
+}
+void main(void)
+{
+    // Local variables for readSerial task
+    //
+    char buf[64] = {0};
+    int idx = 0;
+    // Local variables for PD task
+    //
+    int kP = 3, kD = 2;
+    int pastVal = 0;
+    unsigned int PD_period_ms = 500;
+    unsigned int PD_next_run = 0;
+    // Superloop
+    //
+    while(1)
+    {
+        // readSerial task
+        //
+        if( charAvailable() )  // Non-blocking call
+        {
+            char c = getc();   // Blocking call
+            buf[idx++] = c;
+            if( c == '\n' )
+            {
+                processCommand(buf);
+                memset(buf, 0, 64);
+                idx = 0;
+            }
+        }
+        // PD task
+        //
+        if( PD_next_run - g_systick &gt;= PD_period_ms )
+        {
+            int val = readSensor();
+            int output = (kP * val) + ( kD * (val - pastVal) * PD_period_ms / 1000 );
+            setOutput(output);
+            pastVal = val;
+            PD_next_run += PD_period_ms;
+        }
+    }
+}
+        </pre>
+</td>
+<td>
+<pre>void main(void)
+{
+    taskCreate(readSerial, 0);  // Priority 0 (highest)
+    taskCreate(PD, 1);          // Priority 1
+    startScheduler();           // No return
+}
+void readSerial(void)
+{
+    char buf[64] = {0};
+    int idx = 0;
+    while(1)
+    {
+        char c = getc();   // Blocking call
+        buf[idx++] = c;
+        if( c == '\n' )
+        {
+            processCommand(buf);
+            memset(buf, 0, 64);
+            idx = 0;
+        }
+    }
+}
+void PD(void)
+{
+    int kP = 3, kD = 2;
+    int pastVal = 0;
+    int timeBase_ms = 500;
+    while(1)
+    {
+        int val = readSensor();
+        int output = (kP * val) + ( kD * (val - pastVal) * timeBase_ms / 1000 );
+        setOutput(output);
+        pastVal = val;
+        RTOS_delay(timeBase);
+    }
+}
+        </pre>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Pretty similar; the superloop just runs through each task in, well, a "super loop", whereas the RTOS requires that each task be written as separate functions, each with their own infinite loops. The major differences arise because the RTOS code contained two <em>blocking</em> function calls: <code>getc()</code> and <code>RTOS_delay()</code>. These sorts of function calls are fine in an RTOS, since the scheduler will simply run another task while the first is waiting, but it spells death for the superloop. While the superloop is waiting to receive a character, the <code>PD</code> task would have completely stalled; alternatively, while the <code>PD</code> task is delaying 0.5 sec the <code>readSerial</code> task wouldn't have been capable of processing any incoming characters.</p>
+<p>To solve this, we needed to convert those into <em>non-blocking</em> function calls. For the <code>readSerial</code> task this required finding or writing a function that let us know if a character were available to be read (which, hopefully, is not hard to do). In the case of the <code>PD</code> task, that necessitated creating a system clock to keep track of time. (You may also need to make sure that <em>all</em> of your <code>while</code> loops have some sort of conditional that will allow them to terminate eventually; "<code>while( (c=getc()) != '\n' )</code>" is <strong>verboten</strong>, since it could theoretically run forever! Instead, you'll need to get into the habit of writing loops like that as "<code>while( ( (c=getc()) != '\n' ) &amp;&amp; ( x++ &lt; 1000 ) )</code>" (assuming <code>x</code> has already been declared and initialized to 0), or something similar.) Notice now that both tasks are wrapped in an <code>if</code> statement that doesn't block; if either task has no work to do (i.e. if either expression evaluates to <code>false</code>), then the superloop simply skips over it and goes on to the next task. (The Arduino IDE also has an example of this, under Examples &gt; Digital &gt; BlinkWithoutDelay.) Additionally, there is no line of code or function call inside either task that could run indefinitely.</p>
+<p>There are two "gotchas" to be careful of here, though, both related to the fact that <code>g_systick</code> and <code>PD_next_run</code> will eventually overflow and wrap back around to 0.</p>
+<p>First, the equality comparison for the <code>PD</code> task (<code>if( PD_next_run - g_systick &gt;= PD_period_ms )</code>) is very carefully constructed. It is written to ensure correct behavior even when <code>g_systick</code> and <code>PD_next_run</code> eventually overflow and wrap back around to 0. Consider, for example, the possibility that <code>PD_next_run</code> has a value like <code>UINT_MAX</code> and <code>g_systick</code> has a value like 0. In that case, <code>g_systick</code> has wrapped around and we <em>want</em> the <code>PD</code> task to run. A simple comparison like <code>if( g_systick &gt; PD_next_run )</code> would result in erroneous behavior, though, since 0 is not greater than <code>UINT_MAX</code>. Instead, the comparison used above essentially <em>incorporates</em> wraparound by asking, "What value would need to be added to <code>g_systick</code> to exceed <code>PD_next_run</code> and is this value greater than <code>PD_period_ms</code>?"</p>
+<p>Second, an <code>unsigned int</code> on this hypothetical machine is assumed to be large enough that it's unlikely to wrap around fully every time through the <code>while(1)</code> loop. (Put another way, the execution times of the two tasks are assumed to be short relative to the timer period). This is important to ensure that the timer value looks monotonic to each task (i.e. the timer value increases gradually every time through the loop). Consider the case where an <code>unsigned int</code> is only 8-bits and where the <code>readSerial</code> task takes 257 "ticks" of the system clock in between the <code>PD</code> task running. In that scenario, to the <code>PD</code> task, it would <em>seem</em> as if only 1 tick of the clock has elapsed (for an 8-bit number <code>val</code>, <code>val + 257 == val + 1</code>), which is clearly wrong. This is probably not a concern on most systems, but since our main motivation in using a superloop is to avoid erroneous behavior, I felt it was worth mentioning. To eliminate this error, you can either (1) keep the timer period longer than the total execution time of your tasks or (2) use a larger sized integer. If the size of your integer exceeds the width of your processor, though, you'll need to make sure that any reading of the <code>g_systick</code> variable in your main code is atomic. Otherwise you run the risk of a "torn read", which could happen if the timer ISR were to run (and <code>g_systick</code> updated) in the middle of the main code reading each of the bytes in <code>g_systick</code>. (The easiest way to ensure that a multi-byte read is atomic is to turn off interrupts before reading the <code>g_systick</code> variable and re-enabling them after.)</p>
+<p>Lastly, let's put some number to these schedulers! Let's assume that the <code>readSerial</code> task takes, at worst, 2 us to complete (which includes any time spent in <code>processCommand()</code>) and that it needs to handle at least 200,000 characters a second. This means that, once a character is ready to be read, there may be another character coming in only 5 us (1/200000) so the <code>readSerial</code> task <em>must</em> complete before then, otherwise an incoming character might get dropped. Next, let's assume that the <code>PD</code> task takes, at worst, 7 us to complete and that we need this controller to run at 67 kHz, which means it needs to run every 15 usec. Additionally, we assumed when we built our PD model that the controller would get updated every 15 usec <em>exactly</em>. If there is too much <strong>jitter</strong> (i.e. variance) in the actual updates to the controller then it might not even work. Therefore we'll say that the <code>PD</code> task (in addition to it needing to run once every 15 usec) will need to finish within 13 usec of the start of the period. We can represent this information in a table, like that below.</p>
+<center>
+<table border="1">
+<tbody>
+<tr>
+<th>Task</th>
+<th>Execution time (us)</th>
+<th>Period (us)</th>
+<th>Deadline (us)</th>
+</tr>
+<tr align="center">
+<td>readSerial</td>
+<td>2</td>
+<td>5</td>
+<td>5</td>
+</tr>
+<tr align="center">
+<td>PD</td>
+<td>7</td>
+<td>15</td>
+<td>13</td>
+</tr>
+</tbody>
+</table>
+</center>
+<p>We can show system load using a modified sequence diagram, like the one below. This type of diagram shows how a scheduler would execute the tasks above and, very importantly, how that relates to each tasks' deadline. Colored blocks indicate that a certain task is being executed on the processor at that moment, one color and row for each individual task (we'll assume our system is running on a processor with only one core for the entirety of this series). Upward-facing green arrows indicate that a task has been released (i.e. it's ready to run). Bad things happen (e.g. the PD controller doesn't work or we miss a serial character) if the task is not completed before its next deadline, which is indicated with either a downward-facing blue arrow or the next upward-facing green arrow. The diagram below shows what would happen in this system if we used a superloop.</p>
+<figure><center><img src="https://imgur.com/iQf6jBG.png" height="160"></center></figure>
+<p>Rats! The superloop scheduler misses a deadline at 10 usec. At 2 usec the <code>PD</code> task started running and it hogs the processor until 9 usec, when it finally completes. The <code>readSerial</code> task starts running but doesn't have enough time to complete before another character arrives and is lost. Sad day!</p>
+<p>Let's see how the RTOS would have fared.</p>
+<figure><center><img src="https://imgur.com/gIgE1Ua.png" height="120"></center></figure>
+<p>Success! Instead of being blocked by the <code>PD</code> task, the <code>readSerial</code> task is allowed to run at 5 usec by preempting the <code>PD</code> task (owing to its higher task priority of 0, as indicated in the line of code that created the <code>readSerial</code> task: "<code>taskCreate(readSerial, 0);  // Priority 0 (highest)</code>"; the <code>PD</code> task gets preempted again at 10 usec). The <code>PD</code> task doesn't actually get to complete until 13 usec (as opposed to 9 usec when the superloop was in charge), barely within its deadline, but this system actually works! Let's now talk about <em>why</em> it seems to work.</p>
+<h2 id="definition-time">Definition Time</h2>
+<p>All embedded systems perform <strong>tasks</strong>, which are <strong>released</strong> or "triggered" to run by events such as expiring timers or user inputs once per <strong>period</strong> (we'll discuss later how to handle tasks that aren't exactly periodic). Every task also has a <strong>deadline</strong>, which is the amount of time after being released in which, if the task has not completed, "bad things happen". What is meant by "bad things" is system-dependent and can vary from "the GUI lags" to "the conveyor belt doesn't stop and the $10,000 machine wrecks itself" (or worse!). The former is what we will call a <strong>soft deadline</strong>, since it's <em>undesirable</em> but certainly not the end of the world if the bad thing happens. The latter is what we will call a <strong>hard deadline</strong>, since we don't <em>ever</em> want the bad thing to happen. (If the undesirability of the bad thing happening is somewhere in the middle, we'll call it a <strong>firm deadline</strong>.) In the case of the superloop above, the <code>readSerial</code> task missed it's deadline after being released by the arrival of a character (which was assumed to have arrived at 5 usec), causing that character to be lost (a bad thing), whereas the RTOS didn't, making it the better design choice (in this very simplified example).</p>
+<p>What causes a task to miss it's deadline? It all comes down to the other tasks that are demanding the processor's attention. In the moment when a certain task is released, the processor may very well be executing another task. What happens next depends on (1) the type of scheduler being employed and (2) the relative priorities of the two tasks (and any other tasks which are ready and waiting to run). Schedulers can be divided (among many other ways) into one of two types: cooperative and preemptive. A <strong>cooperative</strong> scheduler relies on each task yielding control back to the processor before it can decide which task should run next; it cannot wrest control back from any task. A <strong>preemptive</strong> scheduler <em>can</em> force a task to be put on "pause" in order to run another higher priority task; in that case the lower-priority task is said to be <strong>preempted</strong>. The superloop scheduler is a cooperative scheduler while the RTOS scheduler is (nearly always) a preemptive scheduler. If a cooperative scheduler is being used then the newly released task will first have to wait for any currently running task to complete, even if that task is of a lower priority. In either case, the scheduler will then run any other ready-to-run tasks in priority order: higher priority tasks are run before lower priority tasks. So the newly released task will also need to wait for any higher priority tasks to complete before it can run. (For our current superloop scheduler there isn't really a concept of "priority" yet, but the end result is the same: a task which is ready to run will have to wait for some number of other tasks to start and finish before its allowed to execute.) If a task is waiting for another task to complete before it is allowed to run, that task is said to be <strong>blocked</strong> and if a task is blocked for too long then it will miss its deadline.</p>
+<p>The longest possible length of time that a certain task could demand the processor's attention (blocking all other lower priority tasks) is called it's <strong>worst-case execution time (WCET)</strong>. The WCET of a task comes about when a certain set of inputs causes the task to</p>
+<ul>
+<li>fall through its longest conditional paths,</li>
+<li>complete the maximum number of <code>for</code> or <code>while</code> loop iterations,</li>
+<li>call library functions that take the longest time to finish executing (printf, for example, can take more or less time to execute depending on the exact numerical value being converted into characters),</li>
+<li>and also, for more complex processors, trigger the maximum feasible number of cache misses, branch mispredictions, etc.</li>
+</ul>
+<p>A tasks' <strong>worst-case response time (WCRT)</strong> is the longest amount of time that a processor might spend on other tasks (i.e. the longest time that a task could be blocked) <em>added to</em> the tasks own execution time (a task must finish executing before the deadline expires in order to avoid "bad things happening"). For a task to <em>never</em> miss it's deadline it must have a WCRT that is less than it's deadline. If this is the case for all tasks in a system, then the system is said to be <strong>schedulable</strong>.</p>
+<p>Our set of tasks is not schedulable using the superloop scheduler because the WCRT of the <code>readSerial</code> task exceeds its deadline, as can be seen in the diagram. This same set of tasks <em>appears</em> to be schedulable using the RTOS by the same logic. But how do we <em>know</em> if a set of tasks is schedulable or not using a given scheduler? Time for some math! And before that, let's establish a few critical assumptions about our system to avoid making the math super gross.</p>
+<h2 id="critical-assumptions">Critical Assumptions</h2>
+<ol>
+<li><strong>All tasks are periodic</strong><br>This means that we'll assume all tasks become ready to run at the start of their periods (like little metronomes) with no jitter, and all periods are known ahead of time and never change. This is, actually, how the <code>PD</code> task above operated (the same as any other task released by a timer), but it's a weirder assumption for something like the <code>readSerial</code> task, which is event-driven (a.k.a. "sporadic"). For event-driven tasks, we'll just have to pretend that the task <em>is</em> periodic, with a "pseudo-period" equal to the fastest "inter-arrival" time of the events (the shortest time between any two subsequent events). This may mean that we over-engineer our system a little, but that's just the price we pay in order to ensure that our system still works, even under the heaviest of loads. (It's possible to analyze a system in which tasks are released in a "bursty" fashion, but doing so is quite outside the scope of this series.)</li>
+<li><strong>All tasks' deadlines are less than or equal to their periods</strong><br>This means that each task <em>must</em> finish executing <em>before</em> its next release time, like in our example system above. There can only ever be one pending invokation of a task, not multiple. Analyzing a system in which tasks are allowed to have deadlines that are longer than their periods (i.e. tasks that are enqueued somehow, or released multiple times before they are processed),&nbsp;is challenging enough that we'll save it for a future article.</li>
+<li><strong>All tasks are completely independent</strong><br>This means that no task ever blocks another from executing (as might happen if one task were using a shared hardware resource or the mutex to a shared variable). This <em>does</em> happen in real life, of course, but not in any deterministic sort of way that we could reasonably include in our analysis. So the best that we can do is assume that there isn't any blocking time and then try to design our systems to actually acheive that as best we can.</li>
+<li><strong>It takes zero time for the scheduler to switch between tasks</strong><br>This is not strictly true, but it's not far off, especially for well-written schedulers.</li>
+<li><strong>Tasks are being executed on a single-core processor</strong><br>We will not address any form of multi-processing in this series.</li>
+</ol>
+<p>In reality, of course, none of these are true all the time which, if you're anything like me, is infuriating. What this means to me, though, is that what we're really doing here is creating a system for which the chances of a task missing its deadline are supremely low. By being overly pessimistic in our estimation of each tasks' WCET and WCRT, we're giving ourselves some headroom to account for the fact that our assumptions (above) aren't exactly true all the time.</p>
+<h2 id="schedulability-of-a-superloop">The Schedulability of a Superloop</h2>
+<p>So a set of tasks is schedulable using a given scheduler if the WCRT of each task is less than it's respective deadline. We'll use an inductive technique to arrive at an equation for the WCRT of a task: by assuming that a task has become ready to run <em>immediately after</em> the scheduler has determined that it was <em>not</em> ready to run (and, subsequently, decided to run the next task).</p>
+<p>For our example, this worst-case scenario would occur for the <code>readSerial</code> task if, immediately <em>after</em> the expression "<code>if( charAvailable() )</code>" were evaluated (and the <code>readSerial</code> task skipped), the <code>readSerial</code> task became ready to run. What series of events could then transpire that would cause the <code>readSerial</code> task to have to wait the longest before it could run? That would simply be if <em>every</em> other task was also ready to run <em>and</em> took their <em>longest possible</em> execution paths (their WCETs) when they did. So the WCRT of any task in this superloop scheduler is equal to the sum of the WCETs for all other tasks in the system plus its own, which is the same as the sum of the WCETs for all of the tasks in the system. We can express this in equation (1) for a set of <em>N</em> tasks, where each task has a unique number from <em>0</em> to <em>N-1</em>. (In the future, a task's number will also correspond to its priority, with Task 0 having the highest priority and Task N-1 having the lowest priority.) Thus, the notation <em>i!=j</em> means "for all tasks that are not task j".</p>
+<p id="eq-1">$$WCRT_j = (\sum_{i\,!=\,j}^{N-1} WCET_i) + WCET_j = \sum_{i=0}^{N-1} WCET_i \tag{1}$$</p>
+<p>This is true of every task in the system. So if the sum of the WCETs for <em>all</em> tasks in this system is <em>less than the shortest</em> deadline, then <em>every</em> task will be able to meet its deadline; that set of tasks is said to be schedulable using a superloop. Notice that this requirement (that the sum of the execution times is less than the shortest deadline) is easy to meet for a set of tasks that (1) don't have long WCETs or that (2) run infrequently (i.e. have large periods), but harder if either of those aren't true.</p>
+<p>How does this look for our example? Since the WCETs of the <code>readSerial</code> and <code>PD</code> tasks are 2 and 7 usec, the WCRT of either task is 9 usec. Since this is longer than the deadline for the <code>readSerial</code> task, we can determine that that set of tasks is <strong>not schedulable</strong> using a superloop. (In what scenario would the <code>readSerial</code> task have to wait 9 usec to complete? Imagine that neither task is ready to run and the scheduler is spinning in a loop, checking each <code>if</code> expression and seeing them as <code>false</code>. This, effectively, randomizes the point at which each task is evaluated to see if it's ready to run. Imagine in that scenario that the clock ticks over and the <code>PD</code> task is ready to run. A fraction of a clock tick later, a character arrives to be processed by <code>readSerial</code>. In that situation, the <code>PD</code> task would run for 7 usec, the <code>readSerial</code> task would run for 2 usec, and if a new character arrived before these were both complete then that character might be lost. Hence, we have a WCRT for either task of 9 usec.)</p>
+<h2 id="measuring-wcet">Measuring WCET</h2>
+<p>Accurately knowing the WCET for a task is clearly a critical prerequisite to ensuring that the system you're designing is schedulable. There are essentially two ways to do that:</p>
+<ol>
+<li>Look at the assembly code that's generated for a task and count how many clock cycles the longest execution path would take.</li>
+<li>Run the task in question while attempting to exercise it such that it takes the longest execution path and then measure how long it takes.</li>
+</ol>
+<p>The first method will likely yield the most accurate value but its tedious, and possibly even intractable if the task includes library functions for which you don't have the source code. The second method is much easier but always holds the chance that the <em>absolute</em> longest execution path isn't actually measured (can you <em>guarantee</em> that your code has executed the longest code path? That your <em>library code</em> has executed the longest code path? That you've triggered the maximum feasible number of cache misses or branch mispredictions?). Using this method usually involves multiplying the longest time the task in question <em>actually</em> takes by some value slightly more than 1, to incorporate a bit of a safety margin.</p>
+<p>There are two primary ways to measure the execution time of a piece of code:</p>
+<ol>
+<li>Using a logic analyzer or oscilloscope</li>
+<li>Using a serial converter or debug adapter</li>
+</ol>
+<p>A third option also exists for RTOS-based systems: Using a program like Tracealyzer from Percepio to determine the execution time of each task.</p>
+<h3 id="using-a-logic-analyzer-or-oscilloscope">Using a logic analyzer or oscilloscope</h3>
+<p>In this method, you'll toggle a GPIO at the start and end of the piece of code and then observe the resulting pulse using a logic analyzer or oscilloscope. (The period of the pulse is also a measure of how often that task gets run, which is useful information.) It's most helpful if you can configure your logic analyzer or oscilloscope to record multiple traces or otherwise help you see the longest pulse so that you're not just watching the numbers for the pulse length flash by and hoping that you'll glimpse the highest value.</p>
+<h3 id="using-a-serial-converter-or-debug-adapter">Using a serial converter or debug adapter</h3>
+<p>"Why use an external timing device," you say, "when our MCU is rife with timers?" An excellent question! In this method, you'll configure one of the MCU's timers to increment every nanosecond or microsecond or millisecond (whichever is most appropriate for your tasks) and log the value of the timer at the start and end of the piece of code. (Some devices may have a running counter of clock cycles, which would also work, you'll just need to remember to convert your timing values later on from something like "42 clock cycles" to "875 nsec".) At the end of the piece of code, once the execution time is known, you can keep track of just the highest value or even add each value to a histogram to get an idea of the distribution of execution times for the piece of code in question.</p>
+<p>There are many ways to get the data off of your MCU:</p>
+<ul>
+<li>Stream each value out of the serial port (or just send out the largest value once a second).</li>
+<li>Periodically halt the processor using a debug adapter and inspect the variable holding the largest value.</li>
+<li>Use a program like uC/Probe or STM32CubeMonitor to continuously display the largest value.</li>
+</ul>
+<p>Don't forget to account for rollover of the timer when you're calculating the execution times, though! Writing this code is left as an exercise for the reader. ;) (Man, I've <em>always</em> wanted to say that! JK, I can provide some starter code if you ask for it in the comments.)</p>
+<h2 id="schedulability-of-an-rtos">Schedulability of an RTOS</h2>
+<p>Now let's move on to the RTOS scheduler. Again let's ask the question: "Once a task has become ready to run, what's the worst possible series of events could then transpire that would cause that task to have to wait the longest before it could run?" Since this is a preemptive scheduler we needn't worry about the WCETs of any lower priority tasks; the scheduler should preempt any of them in order to let the task in question run. <em>However</em>, we do still need to concern ourselves with any higher-priority tasks that are running or are ready to run; our task in question <em>will</em> need to wait for them to complete before it can run. Further, for this to be a "worst case" analysis, we need to assume (as we did above) that all of those tasks take the execution paths that result in their WCETs. So the WCRT of any task in this RTOS scheduler is equal to the sum of the WCETs for all other <em>higher-priority</em> tasks in the system plus their own, as shown in equation (2). Here, the the summation from 0 to <em>j - 1</em> means "for all tasks that have a higher priority than task j" (remember that a lower task number, per our nomenclature, indicates a higher task priority). $$WCRT_j = (\sum_{i=0}^{j-1} WCET_i) + WCET_j \tag{2}$$</p>
+<p>But wait! We can't just add the WCETs of each higher-priority task <em>once</em>; that would only be true if the system were designed such that each higher-priority task could only run once within a given period. In actuality, the higher-priority tasks may be released multiple times before the task in question gets to finish, which means that our summation in the equation above is <em>recursive</em>: if each of the higher-priority tasks are released when the task in question is ready to run and, in the process of running, some of those higher-priority tasks are released <em>again</em>, then we need to add that second execution into our value for the WCRT of the task in question (and so on if, during <em>that</em> execution, <em>even more</em> higher-priority tasks are released). Consider, for example, the task set below:</p>
+<center>
+<table border="1">
+<tbody>
+<tr align="center">
+<th>Task</th>
+<th>Priority</th>
+<th>WCET (us)</th>
+<th>Period (us)</th>
+<th>Deadline (us)</th>
+</tr>
+<tr align="center">
+<td>A</td>
+<td>0</td>
+<td>1</td>
+<td>5</td>
+<td>5</td>
+</tr>
+<tr align="center">
+<td>B</td>
+<td>1</td>
+<td>2</td>
+<td>10</td>
+<td>10</td>
+</tr>
+<tr align="center">
+<td>C</td>
+<td>2</td>
+<td>10</td>
+<td>20</td>
+<td>20</td>
+</tr>
+</tbody>
+</table>
+<figure><img src="https://imgur.com/ZVj4JKB.png" height="160"></figure>
+</center>
+<p>At 0 sec, all tasks are ready to run. Task A has the highest priority so it runs first, followed by Task B, and then Task C starts. This means that when calculating the WCRT of Task C, we will need to include one iteration each for Tasks A and B (so far). Before Task C finishes, though, it gets <em>preempted</em> by Task A at 5 usec; a <em>second</em> iteration of Task A. Task C gets interrupted again at 10 usec (by Tasks A and B) and at 15 usec (by Task A, for the last time). So Task C's final WCRT is <strong>18 usec</strong>, owing to all of the times it was blocked or preempted by the higher-priority tasks A and B.</p>
+<p>A more correct version of equation (2) is shown below, which says that the WCRT of a task using a preemptive RTOS is equal to the WCET of the task plus the total number of times that any higher-priority task might be released before the task in question finishes execution (those vertical bars are depicting the <strong>ceiling function</strong>, they're not brackets).</p>
+<p id="eq-3">$$WCRT_j = \sum_{i=0}^{j-1} ( {\left \lceil \frac {WCRT_j} {P_i} \right \rceil \cdot WCET_i} ) + WCET_j \tag{3}$$</p>
+<p>Notice that the term we're trying to solve for, <em>WCRT<sub>j</sub></em>, is on <em>both sides</em> of the equation. This is what I meant by this equation being recursive: every time a higher-priority task runs, extending a task's WCRT, it gives <em>other</em> higher-priority tasks additional opportunities to run. Solving for the WCRT of Task C requires guessing a value for the left-hand side of equation (3) (I'll start with the <em>very</em> optimistic assumption that <em>WCRT<sub>C</sub> = WCET<sub>C</sub></em>) and checking to see if it matches the right-hand side of equation (3). If it doesn't, you'll use the value from the right-hand side of equation (3) as the new WCRT and repeat. Here's how that would if we were to work that out numerically for Task C from the task set above: $$10 \stackrel{?}{=} \left \lceil \frac {10} 5 \right \rceil \cdot 1 + \left \lceil \frac {10} {10} \right \rceil \cdot 2 + 10 = 2 \cdot 1 + 1 \cdot 2 + 10 = 14 \tag{4}$$ The left-side (10) doesn't equal the right side (14), so let's try again, this time using 14 for WCRT <sub>C</sub>. $$14 \stackrel{?}{=} \left \lceil \frac {14} 5 \right \rceil \cdot 1 + \left \lceil \frac {14} {10} \right \rceil \cdot 2 + 10 = 3 \cdot 1 + 2 \cdot 2 + 10 = 17 \tag{5}$$ Still no convergence, so let's use the new value of 17 usec. $$17 \stackrel{?}{=} \left \lceil \frac {17} 5 \right \rceil \cdot 1 + \left \lceil \frac {17} {10} \right \rceil \cdot 2 + 10 = 4 \cdot 1 + 2 \cdot 2 + 10 = 18 \tag{6}$$ Keep going! $$18 \stackrel{?}{=} \left \lceil \frac {18} 5 \right \rceil \cdot 1 + \left \lceil \frac {18} {10} \right \rceil \cdot 2 + 10 = 4 \cdot 1 + 2 \cdot 2 + 10 = 18 \tag{7}$$ Success! The WCRT of Task C is 18 usec, which agrees with our simulation above.</p>
+<p>So the process of computing the WCRT of a task using a preemptive RTOS looks like this:</p>
+<ol>
+<li>Assume a value for the WCRT of a task (such as it's WCET).</li>
+<li>Figure out how many times each of the higher-priority tasks in the system would be released during the time it would take the task in question to finish executing (rounding up) and add those to the WCET of the task in question.</li>
+<li>Use this value as the new WCRT for the task in question and go back to step 2 until your guessed value for the WCRT matches the right-hand side of equation (3).</li>
+</ol>
+<p>This is true of all tasks in the system. As above, if the WCRTs using the above equation are shorter than the deadlines for each of the tasks, then the system is schedulable. In this case, though, as opposed to the superloop, the WCRTs are clearly much shorter for the higher-priority tasks. This makes certain task sets schedulable using the RTOS that wouldn't be schedulable using the superloop. (Interestingly to me, though, the RTOS doesn't improve the WCRT of each task universally; the WCRT of the lowest-priority task is the same as for, or possibly even <em>worse</em> than, the superloop, and the WCRTs of the next higher-priority tasks might only be marginally better than for the same tasks in a superloop.) Additionally, there are some task sets that are simply not schedulable, even with an RTOS. For example, consider the task set below.</p>
+<center>
+<table border="1">
+<tbody>
+<tr align="center">
+<th>Task</th>
+<th>Priority</th>
+<th>WCET (us)</th>
+<th>Period (us)</th>
+<th>Deadline (us)</th>
+</tr>
+<tr align="center">
+<td>A</td>
+<td>0</td>
+<td>2</td>
+<td>7</td>
+<td>7</td>
+</tr>
+<tr align="center">
+<td>B</td>
+<td>1</td>
+<td>3</td>
+<td>11</td>
+<td>11</td>
+</tr>
+<tr align="center">
+<td>C</td>
+<td>2</td>
+<td>6</td>
+<td>17</td>
+<td>17</td>
+</tr>
+</tbody>
+</table>
+<figure><img src="https://imgur.com/Pz6m5yY.png" height="160"></figure>
+</center>
+<p>Even though overall CPU utilization is only 91.1% (utilization is defined <a href="#the-utilization-test-and-harmonic-rate-monotonic-scheduling">below</a>), Task C has a response time of 18 usec! As can be seen in the figure, Task C misses its deadline at 17 usec because the system was so busy with Tasks A and B that Task C wasn't able to finish. From this I think it's important to understand that an RTOS scheduler is not a panacea; in fact, there are <em>some</em> task sets that <em>aren't</em> schedulable with an RTOS but <em>are schedulable</em> with a superloop! We'll discuss <em>those</em> situations in a future article.</p>
+<h3 id="assigning-task-priorities">Assigning task priorities</h3>
+<p>Which task in an RTOS-based system has the highest (or lowest) priority is clearly a very important decision. For RTOS-based systems that adhere to our <a href="#critical-assumptions">Critical Assumptions</a> above, it turns out that assigning priority based on each tasks' deadline is optimal. This method is called <strong>deadline monotonic shceduling</strong> (DMS). This approach assigns the tasks with the <em>shortest</em> deadlines the <em>highest</em> priorities, in order. If you look back at the two sets of tasks that were analyzed in the <a href="#schedulability-of-an-rtos">Schedulability of an RTOS</a> section, you'll notice that the priority of each task was assigned using this exact method. This isn't the <em>only</em> way to assign priorities, but the fact that this method is "optimal" means that if <em>any</em> other set of priorities allows a set of tasks to be schedulable, then DMS is guaranteed to also be schedulable.</p>
+<h3 id="the-utilization-test-and-harmonic-rate-monotonic-scheduling">The Utilization Test and Harmonic Rate Monotonic Scheduling</h3>
+<p>Much ink has been spilled about the merits and qualities of RTOS schedulers, and one neat discovery to come from that research is that there is a simple test to see if a set of tasks is schedulable using an RTOS that <em>doesn't</em> involve adding up (recursively) a bunch of WCETs and comparing each individual WCRT for each task against its deadline. That test is called a "utilization test" because it simply relies on how much of the processor is utilized by each of the tasks.</p>
+<p>The first step in applying this test is to calculate how much of the processor is utilized by a given task set. To do that, simply divide each task's WCET by its period and then add all of the percentages together.</p>
+<p id="eq-8">$$Utilization = \sum_{i=0}^{N-1} {WCET_i \over Period_i} \tag{8}$$</p>
+<p>A neat application of this is that a set of <em>N</em> tasks is guaranteed to be schedulable with a preemptive RTOS if the processor utilization is less than the value given by equation (9), below.</p>
+<p id="eq-9">$$ Utilization \le N(2^{1/N}-1) \tag{9}$$</p>
+<p>This doesn't exactly work, though, if a task's deadline is <em>less than</em> its period. That's a more restrictive scenario than if the deadlines were all equal to each task's period. In that case, it's possible to create a "pseudo-period" for the task which is equal to its (smaller) deadline. This overestimates how often the task will run but does allow us to use equation 9.</p>
+<p>This condition is <em>sufficient</em> but not <em>necessary</em> for a task set to be schedulable. What that means is that if processor utilization is <em>above</em> the value in equation (9) (but less than or equal to 100%, of course), it doesn't <em>automatically</em> mean that the task set <em>isn't</em> schedulable. In that case, what you need to do is calculate the individual WCRTs of each task (recursively, as described above) to determine if the set of tasks is schedulable.</p>
+<p>Additionally, processor utilization can be as high as <em>100%</em> if the task periods are all <em>harmonic</em>, or integer multiples of each other. Additionally, this requires that all tasks' deadlines be <strong>equal to</strong> their periods, which is a stricter requirement than we set above in the section <a href="#critical-assumptions">Critical Assumptions</a>. A task set with periods of 1, 5, 10, and 20 usec is harmonic (because 1 divides evenly into 5, 10, and 20; 5 divides evenly into 10 and 20; and 10 divides evenly into 20) but a task set with periods of 1, 5, 10, and <em>15</em> are <em>not</em> harmonic (since 10 doesn't divide evenly into 15). For some systems, this means that you can actually make a set of tasks schedulable (when it wouldn't be otherwise) by running some tasks <em>faster</em> than is necessary; processor utilization could be as high as 100% if the 15 ms task above were to be run at 10 ms.</p>
+<h2 id="summary">Summary</h2>
+<p>Regardless of the embedded application you're building, your system is composed of tasks that are released by either a timer or some kind of external input and which need to complete their work before their deadlines to avoid "bad things" from happening. The scheduler decides which task runs when and is a critical part of designing a system that will meet all of its deadlines. In this article, I showed you how to do just that by:</p>
+<ol>
+<li>Determining each task's worst-case execution time (WCET), period, and deadline. The WCETs can be calculated by analyzing source code or measured by either toggling a GPIO (and observing the pulse using a logic analyzer) or by storing the start and end times of a task (using a hardware timer) and piping the data out using a serial adapter or debug adapter. The period and deadlines for each task are set by you, the designer, or by other system constraints.</li>
+<li>Determining if the task set is schedulable using a superloop by adding up the total WCETs (equation <a href="#eq-1">1</a>) and comparing this to the shortest deadline of any task <strong>OR</strong></li>
+<li>Determining if the task set is schedulable using an RTOS by calculating the utilization of the task set (equation <a href="#eq-8">8</a>) and comparing this value to the upper limit set by equation <a href="#eq-9">(9)</a> or by comparing this value to 1 (if your task periods are all harmonic and every task's deadline equals its period). If the utilization is <strong>above</strong> the upper limit set by equation <a href="#eq-9">(9)</a>, than you must calculate the WCRTs of each task using equation <a href="#eq-3">(3)</a> and comparing each task's WCRT to its deadline.</li>
+<li>If you plan on using an RTOS, then, lastly, you will assign task priorities via deadline monotonic scheduling (DMS).</li>
+</ol>
+<p>Additionally, and perhaps of most importance to me, you've seen the problems that preemptive schedulers can create for system designers (race conditions... ew...).</p>
+<p>I hope you enjoyed this introduction to real-time scheduling, learned a thing or two today, and are excited to see how the humble superloop could ever dethrone the king of real-time scheduling, the RTOS! Stay tuned, my friends!</p>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="https://www.amazon.com/Better-Embedded-System-Software-Koopman/dp/0984449000">Better Embedded System Software</a> by Philip Koopman</li>
+<li><a href="https://www.amazon.com/Embedded-Systems-Fundamentals-Cortex-M-Microcontrollers/dp/1911531034">Embedded Systems Fundamentals with ARM Cortex-M based Microcontrollers</a>, Chapter 3, by Alexander Dean</li>
+<li>A lot of my notes come from taking Professor Alex Dean's classes at NC State: ECE560 (Embedded Systems Architectures) and ECE561 (Embedded Systems Design/"Optimization"). His course notes reference, among others, the following articles and books:
+<ul>
+<li>George, L., Rivierre, N., &amp; Spuri, M. (1996). <a href="https://www.rocq.inria.fr/novaltis/research_reports/RR-2966.pdf"><em>Technical Report RR-2966: Preemptive and Non-preemptive Real-time Uniprocessor Scheduling.</em></a> INRIA.</li>
+<li>Sha, L., Abdelzhaer, T., Arzen, K.-E., Cervin, A., Baker, T., Burns, A., et al. (2004, November-December). <a href="https://www.researchgate.net/publication/220414198_Real_Time_Scheduling_Theory_A_Historical_Perspective">Real Time Scheduling Theory: A Historical Perspective.</a> <em>Real Time Systems</em>, 28(2-3), 101-155.</li>
+<li>Davis, R. I., Thekkilakattil, A., Gettings, O., Dobrin, R., Punnekkat, S., &amp; Chen, J.-J. (2017). Exact speedup factors and sub-optimality for non-preemptive scheduling. Real-Time Systems, 54(1), 208&ndash;246. <a href="https://doi.org/10.1007/s11241-017-9294-3">https://doi.org/10.1007/s11241-017-9294-3</a></li>
+<li><a href="https://www.amazon.com/Real-Time-Systems-Programming-Languages-International/dp/0321417453">Real-time Systems and Programming Languages</a> by Alan Burns and Andy Wellings</li>
+<li><a href="https://www.amazon.com/Practitioners-Handbook-Real-Time-Analysis-Electronic/dp/0792393619">A Practitioner's Guide Handbook for Real-time Analysis</a> by Klein, Ralya, Pollak, Obenza, and Harbour.</li>
+</ul>
+</li>
+</ul>

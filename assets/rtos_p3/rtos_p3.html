@@ -1,0 +1,836 @@
+<h1>You Don't Need an RTOS (Part 3)</h1>
+<p>by Nathan Jones</p>
+<img src="/home/nathancharlesjones/Documents/Work/llc_assets/logo_full.png" width="300">
+<p>At least, probably not as often as you think you do. Using a preemptive RTOS can help make a system schedulable (i.e. help all of its tasks meet their deadlines) but it comes at a cost: "concurrently" running tasks can interact in unforeseen ways that cause system failures, that dreaded class of errors known as "race conditions". In part, this is because humans have difficulty thinking about things that happen concurrently. Using the venerable superloop can help avoid this problem entirely and, in some cases, it can actually make a system work that wouldn't work at all using an RTOS! Additionally, a "superloop" style scheduler has the benefit of being simple enough for you to write yourself in a few dozen lines of code.</p>
+<p>If you're unfamiliar with terms like "deadlines", "schedulability", or "worst-case response time", then I would argue you are almost <em>definitely</em> using an RTOS prematurely! If you <em>are</em> familiar with those terms, allow me to show you a few ways to improve the superloop that bring its performance nearly on par with an RTOS, with no concern about race conditions.</p>
+<p><em>This is the third in a series of posts lauding the advantages of the simple "superloop" scheduler. Other articles in this series are or will be linked below as they are published.</em></p>
+<ul>
+<li><a href="https://www.embeddedrelated.com/showarticle/1636.php">Part 1: Comparing Superloops and RTOSes</a></li>
+<li><a href="https://www.embeddedrelated.com/showarticle/1652.php">Part 2: The "Superduperloop"</a></li>
+<li>Part 3: Other Cool Superloops and DIY IPC (this article)</li>
+<li><a href="https://www.embeddedrelated.com/showarticle/1662.php">Part 4: More DIY IPC</a></li>
+</ul>
+<h2>Contents</h2>
+<ul>
+<li><a href="#part-3">Part 3: Other Cool Superloops and DIY IPC</a></li>
+<li><a href="#a-quick-recap">A Quick Recap</a></li>
+<li><a href="#other-cool-superloops">Other Cool Superloops</a>
+<ul>
+<li><a href="#protothreads">Protothreads</a></li>
+<li><a href="#ulwos2">ULWOS2 (Ultra Light Weight OS 2)</a></li>
+<li><a href="#cocoos">cocoOS</a></li>
+<li><a href="#sst">SST0 (Super Simple Tasker) and the QV kernel from the QP Framework</a></li>
+<li><a href="#honorable-mention">Honorable Mention: FreeRTOS</a></li>
+</ul>
+</li>
+<li><a href="#diy-ipc">DIY Inter-Process Communication</a>
+<ul>
+<li><a href="#thread-flags">Thread Flags/Binary Semaphores</a></li>
+<li><a href="#event-flags">Event Flags</a>
+<ul>
+<li><a href="#timers">Timer Events</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#i-can-do-better">"Anything You Can Do, I Can Do Better!"</a></li>
+<li><a href="#all-together">The "Superduperloop", v2</a></li>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#references">References</a></li>
+</ul>
+<h2 id="part-3">Part 3: Other Cool Superloops and DIY IPC</h2>
+<p>In this third article I'll share with you the following cooperative schedulers (with a mix of both free and commercial licenses) that implement a few of the OS primitives that the "Superduperloop" is currently missing, possibly giving you a ready-to-go solution for your system:</p>
+<ul>
+<li>Protothreads</li>
+<li>ULWOS2 (Ultra Light Weight OS 2)</li>
+<li>cocoOS</li>
+<li>SST0 (Super Simple Tasker) / QV (from the QP Framework)</li>
+</ul>
+<p>On the other hand, I don't think it's all that hard to add thread flags, binary and counting semaphores, event flags, mailboxes, "marquees", queues, and even a simple Observer design pattern to the "Superduperloop" (you can find lots of great information about what each of these primitives do by reading the documentation for an RTOS like <a href="https://www.freertos.org/features.html">FreeRTOS</a> or <a href="https://www.keil.com/pack/doc/CMSIS/RTOS2/html/rtos2_tutorial.html#rtos2_tutorial_interthread_com">CMSIS RTX5</a>); I'll show you how to do that in the second half of this article and in the next. Although it will take a <em>little</em> more work than just using one of the projects above, it will give you the <em>maximum </em>amount of control over your system and it will let you write tasks in ways you could only dream of using an RTOS or other off-the-shelf system.</p>
+<h2 id="a-quick-recap">A Quick Recap</h2>
+<p>In Part 2 of this series we added task priorities and interrupts to the basic superloop (and looked at how to turn tasks into FSMs [finite state machines]) to give it a WCRT (worst-case response time) on par with a preemptive RTOS (real-time operating system). That scheduler, the "Superduperloop", looked like this:</p>
+<pre>// One bitmask per task, e.g.
+enum { A_NUM, B_NUM, NUM_TASKS };
+const int A_MASK = (1&lt;&lt;A_NUM);
+const int B_MASK = (1&lt;&lt;B_NUM);
+// Function prototypes for tasks here, e.g.
+int TaskA(void);
+int TaskB(void);
+volatile int g_systick = 0, g_tasks = 0;
+void timerISR(void)
+{
+    g_systick++;
+    // Release a task using, e.g.
+    // atomic_fetch_or(&amp;g_tasks, A_MASK);  // Assuming ISRs are preemptible. Otherwise
+                                           // "g_tasks |= A_MASK;" is fine.
+}
+void main(void)
+{
+    while(1)
+    {
+        // One if/else if block per task, higher priority tasks located
+        // higher up in the chain of if statements.
+        //        
+        if( g_tasks &amp; A_MASK )
+        {
+            atomic_fetch_and(&amp;g_tasks, (~A_Mask));
+            if( TaskA() ) atomic_fetch_or(&amp;g_tasks, A_MASK);
+        }
+        else if( g_tasks &amp; B_MASK )
+        {
+            atomic_fetch_and(&amp;g_tasks, (~B_Mask));
+            if( TaskB() ) atomic_fetch_or(&amp;g_tasks, B_MASK);
+        }
+        else
+        {
+            if( !g_tasks )
+            {
+                disableInterrupts();
+                if( !g_tasks ) wfi();
+                enableInterrupts();
+            }
+        }
+    }
+}
+</pre>
+<p>The WCRT of a task was found using equation <a href="https://www.embeddedrelated.com/showarticle/1652/#eq-5">5</a> (or equation <a href="https://www.embeddedrelated.com/showarticle/1652/#eq-3-and-4">3 or 4</a> for an ISR) and task priorities were assigned using either DMS (deadline monotonic scheduling), an exhaustive search, or Audsley's algorithm (see <a href="https://www.embeddedrelated.com/showarticle/1652/#assigning-task-priorities">Assigning Task Priorities</a>).</p>
+<h2 id="other-cool-superloops">Other Cool Superloops</h2>
+<p>At the end of that article, though, we established that for this to be a viable solution for an embedded system, our scheduler needs to support a few forms of <strong>inter-process communication</strong> (IPC). These forms of communication or synchronization are what allow tasks to interact in a correct manner. Typical forms of IPC are semaphores, message queues, mutexes, stream buffers, thread flags, and event flags. In the second half of this article and in the next I'll show you how to implement those OS primitives in the "Superduperloop". But if you're ready to see how someone else has already tried to solve that problem, here are a handful of cooperative schedulers that you can use right now in your next embedded project.</p>
+<h3 id="protothreads">Protothreads</h3>
+<p><a href="https://dunkels.com/adam/pt/index.html">Protothreads</a> isn't a scheduler, per se, but we've used it a bit in the last two articles to show how it can be used to greatly simplify your FSM-based tasks. In those examples you saw a basic use of Protothreads, but this project has some other neat function calls to assist in writing your application code that include waiting <em>while</em> a condition is true (as opposed to <em>until</em> a condition is true), spawning threads, and waiting for a thread to complete, among others.</p>
+<figure><center><img src="https://imgur.com/Xjp3mU6.png" height="400"></center></figure>
+<p>The author also includes a basic implementation for a semaphore, though I think you'll need to make sure that interrupts are off when you use those functions, to prevent any race conditions from ISRs modifying the semaphore at the same time. Overall, I think it's a great companion for the "Superduperloop" and I'll use it below to demonstrate what a task might look like when using all of the OS primitives that we'll develop in the second half of this article. </p>
+<h3 id="ulwos2">ULWOS2 (Ultra Light Weight OS 2)</h3>
+<p><a href="https://embeddedsystems.io/ulwos2-a-simple-cooperative-os-part-1/">ULWOS2</a> is a simple cooperative scheduler in which tasks are added to a linked list as they are created and which then get resorted (and then executed) in priority order any time a task becomes ready to run. One neat feature of this design choice is that an arbitrary number of tasks in ULWOS2 are allowed to have the same priority level. The graphic below shows what this linked list of tasks might look like and what would happen when these tasks are released in the order shown.</p>
+<figure><center><img src="https://imgur.com/ucKvdai.png" height="600"></center></figure>
+<p>The <em>downside </em>of having tasks at the same priority level is that our scheduling math gets more complicated. The ULWOS2 scheduler will only push tasks with a higher priority ahead of tasks with a lower priority; for tasks with the same priority level, the task that runs first is, essentially, the task that was released first. Notice how, in the graphic above, Tasks C and B are moved <em>up </em>in the linked list as they become ready to run, but Task A remains in place in the linked list (since it doesn't have a <em>strictly </em>higher priority than Task B, which is already ready to run). In effect, this creates something like a <strong>dynamic priority scheme</strong> and the exact WCRT of tasks at the same priority level will change based on the specific release times of those tasks. The best we can do, when using this scheduler, is say that each tasks' WCRT is <em>no worse </em>than if it were the <strong></strong><em>last to run </em>within its priority level and <em>no better </em>than if it were the <em>first to run</em>. (We'll discuss dynamic priority schedulers in a future article.) There are no complications if there is only one task at each priority level.</p>
+<p>ULWOS2 is based on a set of macros that create <code>goto</code> targets within a task for the same reason that Protothreads used <code>switch...case</code> statements, allowing a task to pick back up in the same spot that it yielded from on subsequent function calls.</p>
+<figure><center><img src="https://imgur.com/FyYks89.png" width="700"></center></figure>
+<p>ULWOS2 supports two forms of signaling: event flags (which are called "signals") and message queues. Adding support for other OS primitives (such as semaphores or thread flags) would take a little bit more work, but I think it would not be impossible.</p>
+<figure><center><img src="https://imgur.com/IzXSRtd.png" height="300"></center></figure>
+<p>The ULWOS2 queue API includes (among a few others), the functions below. One big downside to ULWOS2, though, is that <strong>none of these queue functions are thread-safe</strong>, meaning that you'd need to disable interrupts before (and re-enable them after) each function call if there's any chance of that piece of code being interrupted by an ISR that could <em>also</em> operate on that same queue (or you could fork the project and modify it to use atomic functions so that accesses to each queue <em>were </em>thread-safe).</p>
+<ul>
+<li><code>ULWOS2_MESSAGE_ENQUEUE(id,data)</code></li>
+<li><code>ULWOS2_MESSAGE_TRY_ENQUEUE(id,data)</code></li>
+<li><code>ULWOS2_MESSAGE_DEQUEUE(id,data)</code></li>
+<li><code>ULWOS2_MESSAGE_TRY_DEQUEUE(id,data)</code></li>
+</ul>
+<p>Putting an MCU to sleep using ULWOS2 is a little problematic; the scheduler is set up to just spin forever, looking for tasks that are ready to run. The best option would probably be to put a <code>wfi()</code> call inside a task at the lowest priority level (since no other tasks would need to run if the scheduler got there), but you'd leave yourself open to that once-in-a-blue-moon error when, right after the ULWOS2 scheduler decided to run the lowest priority task (and go to sleep), an interrupt <em>did</em> run, releasing a higher priority task. That task would then have to wait for the <em>next</em> interrupt to occur to wake-up the processor and restart the scheduler. (If you're forking the project to fix the thread-safety of the queue functions, you might consider adding the following code snippet <a href="https://github.com/fabiopjve/ULWOS2/blob/a81490ddc5977b13902bba3173ca93f2176ded6c/src/ULWOS2.c#L235">here</a> [right after the end of the <code>while</code> loop and before <code>ULWOS2_checkTimers()</code>] to let your system go to sleep safely):</p>
+<pre>if( currentTCB == NULL )
+{
+    disableInterrupts();
+    if( !invalidateThreadPriorityQueue ) wfi();
+    enableInterrupts();
+}
+</pre>
+<p>Here's what a simple ULWOS2 application looks like.</p>
+<figure><center><img src="https://imgur.com/PuU9Kne.png" height="500"></center></figure>
+<p>To me, the best part about ULWOS2 is that it resides in only 4 source files! You can find the source code <a href="https://github.com/fabiopjve/ULWOS2/tree/master">here</a>.</p>
+<h3 id="cocoos">cocoOS</h3>
+<p>cocoOS is a larger cooperative scheduler that adds tasks to an array as they are created and then determines which tasks are ready to run anytime an event occurs by iterating over that array. cocoOS uses the <code>task_open()</code> and <code>task_close()</code> macros at the beginning and end of a task to open and close a <code>switch...case</code> statement, much like Protothreads does.</p>
+<pre>#define task_open() OS_BEGIN
+#define OS_BEGIN    uint16_t os_task_state = os_task_internal_state_get(running_tid); \
+                    switch ( os_task_state ) { case 0:
+</pre>
+<p>cocoOS supports a number of different IPC, including events, semaphores, and message queues. Additionally, cocoOS provides an interesting form of IPC based on "subticks", which are counters that can be incremented by events which are not merely a timer ISR. Tasks can wait until a number of "subticks" have transpired (much like waiting until a number of clock ticks have transpired), which is the same as waiting until some number of events that trigger the subtick have occurred. Below is a summary of some of the most important API calls.</p>
+<figure><center><img src="https://imgur.com/FCgyMak.png" height="300"></center></figure>
+<p>cocoOS is the largest piece of code on this list (weighing in at over <em>2000 LOC</em>), and a big reason for that length is that the API goes above and beyond what you might expect from a simple implementation of events, semaphores, and queues.</p>
+<ul>
+<li>Tasks can wait for events (<code>event_wait</code>) and also wait for events <em>or</em> until a timeout is reached (<code>event_wait_timeout</code>).</li>
+<li>Tasks can wait for an arbitrary number of events to occur (<code>event_wait_multiple</code>).</li>
+<li>Tasks can post messages to another task's queue and, if the queue is full, either yield until the queue is not full (<code>msg_post</code>) or abandon the posting of the message and continue execution (<code>msg_post_async</code>). Similarly, tasks can try to pull a message out of their queue and, if the queue is empty, either yield until the queue is not empty (<code>msg_receive</code>) or abandon trying to receive a message and continue execution (<code>msg_receive_async</code>).</li>
+</ul>
+<p>Some of the features, though, don't seem all that useful to me.</p>
+<ul>
+<li>Tasks can specify that a message not post to another task's queue until after a delay (<code>msg_post_in</code>) or that a message be posted to a task's queue at regular intervals (<code>msg_post_every</code>).</li>
+<li>Tasks can call various functions with a callback parameter that calls a function once the task's state has been updated (<code>event_wait_ex</code>, <code>event_wait_timeout_ex</code>, <code>msg_receive_ex</code>).</li>
+<li>Tasks can suspend themselves or another task (<code>task_suspend</code>), in which case they don't run or respond to events until they are resumed (<code>task_resume</code>).</li>
+</ul>
+<p>There are a few other downsides to this project. First, <strong>none of the code (that I can tell) is thread-safe</strong>. And this, <em>despite offering two functions called <code>event_ISR_signal</code> and <code>sem_ISR_signal</code></em>!! (Actually, it turns out those two functions aren't called that because they're ISR-safe, but because they're safe to be called from within an ISR; they do the same things as <code>event_signal</code> and <code>sem_signal</code> except they don't yield control back to the scheduler when they run.) Near as I can tell, all of the functions that modify a task's state fail to protect the critical sections where shared memory is accessed, which leaves the program open to race conditions.</p>
+<p>Lastly, although cocoOS provides the system the ability to sleep if there are no pending tasks, ISRs are not disabled before going to sleep. This means that we have the same possible problem as when we added sleeping to the "Superduperloop", if an ISR&nbsp;runs <em>right after</em> the scheduler has already selected to go to sleep. The ISR would run, the system would go to sleep, and none of the tasks would get the chance to respond to the ISR until the <em>next</em> ISR is run!</p>
+<p>A sample cocoOS application looks like this:</p>
+<pre>static void hello_task(void) {
+  task_open();
+    for(;;) {
+      uart_send_string("Hello World!");
+      task_wait( 20 );
+    }
+  task_close();
+}
+int main(void) {
+  /* Setup ports, clock... */
+  system_init();
+  /* Create kernel objects */
+  task_create( hello_task, 0, 1, NULL, 0, 0 );
+  os_init();
+  clock_start();
+  os_start();
+  /* Will never end up here */
+  return 0;
+}
+</pre>
+<p>Overall, cocoOS supports a lot of features (the most on this list!) but it suffers for it in terms of complexity. You can find more at the cocoOS <a href="https://github.com/cocoOS/cocoOS">GitHub repository</a>.</p>
+<h3 id="sst">SST0 (Super-Simple Tasker) and the QV kernel from the QP Framework</h3>
+<p>SST is build around the paradigm that all tasks are event-driven FSMs, not unlike how we've written our tasks thus far. The biggest difference, however, comes from whether you think of tasks as blocking and waiting for <em>specific</em> events (such as thread flags to be set or mutexes to be released) or as waiting for and responding to <em>any number</em> of events. In SST and QP, tasks are designed like the latter. The scheduler merely adds events to each task's event queue and calls each task in priority order, with the tasks processing or handling each event in the order in which it was added to its queue. The benefit to this design strategy (as discussed in <a href="https://www.state-machine.com/doc/Cummings2006.pdf">this paper</a>, from which the graphic below was taken) is that tasks can respond to <em>any </em>system event, instead of blocking and waiting for just one event to occur. This becomes important if tasks need to respond to error conditions or other system events that may alter their normal execution. </p>
+<figure><center><img src="https://imgur.com/Vq5l14K.png" height="300"></center></figure>
+<p>Messages are sent to other tasks using <code>SST_Task_post</code>. Additionally, SST0/QV allows tasks to request that a timer&nbsp;event be posted to their queue after a user-defined timeout value. These timers can be repeated or one-shot. This is a powerful and an incredibly flexible paradigm, one which I like a lot. For <em>some </em>applications, though, I don't think this level of flexibility is needed; if you write your tasks in such a way that they essentially reject all messages except the one that they're waiting for, then why have the complexity of a scheduler that allows tasks to respond to any event? But for most applications this is a robust and flexible paradigm and it's the way I imagine writing a lot of my own code.</p>
+<p>One downside of this architecture, that I can see, is that it's not really possible for a task to "yield" back to the scheduler (if, for instance, a task needed a long time to process an event but was willing to be interrupted in the middle). Events are consumed when the task runs, so anything that needs to happen with that event has to complete before the task finishes. If that takes a long time, then it might be hard to schedule a set of tasks. One workaround could be for a task to reinsert the event into it's own event queue, forcing the scheduler to run it again, but that feels a <em>little bit</em> like a kludge.</p>
+<p>One last downside is that SST0 <a href="https://github.com/QuantumLeaps/Super-Simple-Tasker/blob/bf56d1e668c3f1f1cd4255215c8ad8737ce26800/sst0_c/src/sst0.c#L74">doesn't do anything to recycle the events</a> that get put into each tasks' queues; they are just sort of discarded after they're processed. Each event is a <em>pointer</em> to a piece of data, which means discarding this pointer creates a memory leak, unless it's mitigated. The easiest way to mitigate this is by using the heap: tasks that create events use alloc/malloc/calloc to create separate events (with the same data) for each task that they're sending the event to and the scheduler then frees that memory after each task is finished processing the event. If you're averse to using the heap, though, you'll need a more complex solution. Note that the QV kernel <em>does</em> include event recycling.</p>
+<p>The source code for SST0 can be found <a href="https://github.com/QuantumLeaps/Super-Simple-Tasker/tree/main">here</a> (along with an implementation for a preemptive RTOS, "SST") and, awesomely, it's only 4 source files! I would say that it's a more complicated implementation than ULWOS2, though, in large part because it relies on inheritance to allow tasks to respond to events of different types.</p>
+<p>It's my understanding (though I could be wrong) that SST0 is sort of like the minimal, younger brother to the QV (cooperative) kernel from the <a href="https://www.state-machine.com/products/qp">QP framework</a>. As far as I know, they function the same but the QV kernel is quite a bit more complicated, exactly because the QP framework has a number of advanced features. If you're looking for a robust, cooperative scheduler that's <em>not</em> homegrown and is ready to use on <em>any</em> commercial product, though, look no further than QV kernel from the QP framework!</p>
+<h3 id="honorable-mention">Honorable Mention: FreeRTOS</h3>
+<p>FreeRTOS seems to have some basic support for <a href="https://www.freertos.org/croutine.html">coroutines</a> (another word describing a cooperative scheduler), and you can even mix coroutines and preemptive tasks, but it's unclear to me if a coroutine can access any part of the preemptive FreeRTOS API (such as to manage mutexes, queues, etc) other than <code>crDELAY</code>. Without knowing that, it's hard to recommend this as a viable option for a real system.</p>
+<h2 id="diy-ipc">DIY Inter-Process Communication</h2>
+<p>Let's now consider how we might implement these OS primitives ourselves. With only a little bit of work, we'll add a <em>ton</em> of capabilities to the "Superduperloop", over which you'll have more control than with any of the projects above.</p>
+<p>I like to think of the various forms of IPC as existing in one of four boxes based on whether they are intended as (1) point-to-point versus broadcast signals and whether they are meant to convey either (2) binary data or arbitrary data.</p>
+<table border="1">
+<tbody>
+<tr>
+<td></td>
+<td><strong>Point-to-point </strong></td>
+<td><strong>Broadcast</strong></td>
+</tr>
+<tr>
+<td><strong>Binary data</strong></td>
+<td><mark>Thread flag/Binary semaphore</mark><br>Counting semaphore</td>
+<td><mark>Event flag</mark></td>
+</tr>
+<tr>
+<td><strong>Arbitrary data</strong></td>
+<td>Mailbox<br>Observer pattern<br>Queue<br>Stream buffer<br><a href="https://www.amazon.com/Patterns-Machine-Software-Engineering-Development/dp/1484264398">Model Points</a></td>
+<td>"Marquee"<br>PubSub</td>
+</tr>
+</tbody>
+</table>
+<p>The two techniques that we'll discuss in this article are thread flags/binary semaphores and event flags. (In the next article we'll discuss counting semaphores, mailboxes, queues, a simple Observer pattern, and something I call a "marquee".) Adding these capabilities will only take a few dozen lines of code and will bring the "Superduperloop" up to the level of a full-fledged OS! The required changes will be fairly minimal: to our main scheduler, we'll add a global event flag plus some functions for tasks to register for global events or for a notification when some amount of time has expired.</p>
+<pre>// main.h
+//
+volatile int g_event_flags;
+void registerForEvent(int task_num, int event_flag);
+void deregisterFromEvent(int task_num, int event_flag);
+void registerForSystickEvent(int task_num, int timeout, int reloadValue);
+void deregisterFromSystickEvent(int task_num);
+</pre>
+<p>The bigger changes will occur inside each of the tasks, which will gain (1) local variables (to store data or flags sent by other tasks) and (2) public "setter" functions to allow the other tasks to "send" flags or data to that task and "getter" functions to allow other tasks to retrieve information that that task has produced. These public functions are like sockets, allowing other tasks and ISRs that produce events or data&nbsp;to send them to each of our tasks.</p>
+<pre>// TaskA.h
+//
+/*************************
+ *    Prototypes for     *
+ *     "Setter" and      *
+ *  "Getter" functions   *
+ *************************/
+// TaskA.c
+//
+/*************************
+ * Local variables/flags *
+ *************************/
+/*************************
+ *     "Setter" and      *
+ *  "Getter" functions   *
+ *************************/
+void TaskA(void){ ... }
+</pre>
+<p>Additionally, tasks that implement our simple Observer pattern will have a means of registering and deregistering other tasks from receiving notifications when new data is available.</p>
+<pre>// TaskB.h
+//
+void register( ... );
+void deregister( ... );
+</pre>
+<p>The graphic below depicts how these OS primitives will facilitate data flow to each of the tasks. The two techniques we'll discuss in this article (thread flags/binary sempahores and event flags) are colored in purple; the ones we'll discuss in the next article are colored in light blue.</p>
+<figure><center><img src="https://imgur.com/5vHIKPd.png" height="400"></center></figure>
+<p>Each task can alter its execution based on its internal flags or variables (which are set by other tasks or ISRs that call its <code>"setFlag"</code> or <code>"postMsg"</code> functions) or on global flags or variables; tasks/ISRs implementing the Observer pattern require that a task register itself to be notified when an event occurs.</p>
+<p>Okay, let's dive in!</p>
+<h3 id="thread-flags">Thread Flags/Binary Semaphores</h3>
+<p>Thread flags are a point-to-point means of communicating a piece of binary information to a thread: an event did or did not happen, something is or is not true. A semaphore can be used in the same way (among other uses) if it starts at 0 and is given once by an activating event. The <code>g_tasks</code> variable in our "Superduperloop" scheduler works exactly like this: many different events can set a task's ready flag to 1, with the task waiting to be run until then. We'll extend this technique by giving each task it's own flags variable, with one bit associated with each flag or semaphore. ISRs or other tasks can call the appropriate function to both set the flag bit and also set the ready bit in the "Superduperloop"s <code>g_tasks</code> variable. Once the task is run, it can check it's own flags variable to see which condition is now true to have caused it to run. The code might look something like this:</p>
+<pre>// TaskA.c
+//
+/*************************
+ * Local variables/flags *
+ *************************/
+enum { FLAG1_NUM, SEMAPHORE1_NUM };
+const int FLAG1_MASK = (1&lt;&lt;FLAG1_NUM);
+const int SEMAPHORE1_MASK = (1&lt;&lt;SEMAPHORE1_NUM);
+static volatile int thread_flags = 0;
+/*************************
+ *  "Setter" functions   *
+ *************************/
+void setFlag1(void)
+{
+    atomic_fetch_or(&amp;thread_flags, FLAG1_MASK);
+    atomic_fetch_or(&amp;g_tasks, A_MASK);
+}
+void giveSemaphore1(void)
+{
+    atomic_fetch_or(&amp;thread_flags, SEMAPHORE1_MASK);
+    atomic_fetch_or(&amp;g_tasks, A_MASK);
+}
+/*************************
+ *       The Task        *
+ *************************/
+void TaskA(void)
+{
+    int taskStatus = 0;    // 0 = Waiting for event
+    static enum { STATE_0, STATE_1 } state = STATE_0;
+    switch( state )
+    {
+        case STATE_0:
+            if( thread_flags &amp; FLAG1_MASK )
+            {
+                // Do stuff when flag1 has been set
+                // Reset flag1 atomically
+                //
+                atomic_fetch_and(&amp;thread_flags, ~FLAG1_MASK);
+                // Alt: Clear all pending triggers
+                // thread_flags = 0;
+                state = STATE_1;
+                taskStatus = 1;          // 1 = Yielded; task should be called again to complete FSM
+            }
+            break;
+        case STATE_1:
+            if( thread_flags &amp; SEMAPHORE1_MASK )
+            {
+                // Do stuff when semaphore1 has been set
+                // Reset semaphore1 and protect critical section
+                //
+                atomic_fetch_and(thread_flags, ~SEMAPHORE1_MASK);
+                // Alt: Clear all pending triggers
+                // thread_flags = 0;
+                state = STATE_0;
+                taskStatus = 0;         // Task is complete; waiting for next event
+            }
+            break;
+    }
+    return taskStatus;
+}
+</pre>
+<p>(Truth be told, a flag bit isn't strictly necessary if the task is able to just check whether or not a condition is true when it runs. However, if there's a concern that the event [such as a very fast button press] might have passed before the task is able to check for it when it runs, or if checking the condition would take a long time, then setting a flag is necessary. I'll assume all events trigger a flag for consistency.)</p>
+<p>An ISR or another task can call <code>setFlag1()</code> or <code>giveSemaphore1()</code> in order to let Task A know that something has happened or that something is now true that wasn't before. Task A starts by waiting for the flag 1 bit to be set, modeling an event that releases the task. If semaphore 1 <code></code>is given during this state, Task A is still run but it does nothing, effectively ignoring the event. Once Task A has started, it will do some processing and then wait for another event (semaphore 1) before continuing. Again, if the flag 1 bit is set during this state, nothing happens. (It might seem inefficient to run the task even when it will have nothing to do, but I think this same thing is happening in a more complex scheduler anyways. If a semaphore <code></code>is given by an ISR or task, <em>something</em> needs to check if that makes Task A ready to run, whether its the task itself or the scheduler. Putting that check inside the task helps keep our scheduler simple.)</p>
+<p>At what point flags get cleared is up to you. If you want each task invocation to start from a clean slate, then you would clear the <code>thread_flags</code> variable at the end of each state, before returning from the function. If, on the other hand, you want your task to react to every event, even if it occurred out of order, then you should only clear the individual flag your task is responding to and no others. Consider what would happen in the example above if our events happened out of order, if semaphore 1 was given <em>before</em> flag 1. Flag 1 would kick off the task; if you cleared your flags at the end of the state then Task A would be waiting for a <em>second</em> occurrence of semaphore 1 <code></code>before it could continue. If, on the other hand, you only cleared each flag as it was addressed, then the semaphore 1 flag would still be set when Task A got to State 1. In that case, Task A would run right through it's state machine, <em>not </em>needing a second occurrence of semaphore 1 <code></code>to continue.</p>
+<p>We can also use various bitwise operations to easily block until or while some <em>set</em> of flags are all true or false, like this:</p>
+<pre>if( flags &amp; 0b11 )        // Blocks until BOTH flag1 and semaphore1 are set
+if( flags | 0b11 )        // Blocks until EITHER flag1 or semaphore1 are set;
+                          // equivalent, in this case, to "if( flags )"
+if( !(flags &amp; 0b11) )     // Blocks WHILE either flag1 or semaphore1 are set;
+                          // e.g. UNTIL both flag1 and semaphore1 are CLEARED
+</pre>
+<p>This gives us considerable flexibility in exactly how a small set of flags or semaphores can trigger a task.</p>
+<h3 id="event-flags">Event Flags</h3>
+<p>Event flags are a broadcast means of communicating a piece of binary information to many threads: an event did or did not happen, something is or is not true. Whereas a thread flag would be used when only one or a few tasks should know about the event, an event flag would be used if multiple threads needed to know about the event. Task will be allowed to register for (and deregister from) event notifications and just the tasks that have registered for a given event are released when that event occurs (a corresponding bit in a global flag variable is also set to indicate <em>which</em> event has just occurred).</p>
+<pre>// main.h
+//
+enum { EVENT1_FLAG_NUM };
+const int EVENT_FLAG1_MASK = (1&lt;&lt;EVENT1_FLAG_NUM);
+volatile int g_event_flags = 0;
+// main.c
+//
+static int tasks_registered_for_event1 = 0;
+void registerForEvent1(int task_priority)
+{
+    tasks_registered_for_event1 |= (1&lt;&lt;task_priority);
+}
+void deregisterFromEvent1(int task)
+{
+    tasks_registered_for_event1 &amp;= ~(1&lt;&lt;task_priority);
+}
+void setEventFlag1(void)
+{
+    atomic_fetch_or(&amp;g_event_flags, EVENT_FLAG1_MASK);
+    atomic_fetch_or(&amp;g_tasks, tasks_registered_for_event1);
+}
+</pre>
+<p>When Event 1 occurs, any task that has previously registered for it will be released. If any of them are waiting on event 1 to occur, they can identify that by reading the <code>EVENT_FLAG1_MASK</code> bit in the <code>g_event_flags</code> variable. As with thread flags, each task can block on any set of event flags also, using various bitwise operations.</p>
+<p>If there are to be a number of event flags in the system, you may find it cleaner to make an array of <code>tasks_registered_for_event#</code> with just one register and deregister function to handle all of them.</p>
+<pre>// main.h
+//
+enum { EVENT1_FLAG_NUM, EVENT2_FLAG_NUM, EVENT3_FLAG_NUM, NUM_EVENT_FLAGS };
+const int EVENT_FLAG1_MASK = (1&lt;&lt;EVENT1_FLAG_NUM);
+const int EVENT_FLAG2_MASK = (1&lt;&lt;EVENT2_FLAG_NUM);
+const int EVENT_FLAG3_MASK = (1&lt;&lt;EVENT3_FLAG_NUM);
+volatile int g_event_flags = 0;
+// main.c
+//
+static int tasks_registered_for_events[NUM_EVENT_FLAGS] = {0};
+void registerForEvent(int task_num, int event_flag)
+{
+    tasks_registered_for_events[event_flag] |= (1&lt;&lt;task_num);
+}
+void deregisterFromEvent(int task_num, int event_flag)
+{
+    tasks_registered_for_events[event_flag] &amp;= ~(1&lt;&lt;task_num);
+}
+</pre>
+<p>Another thing to consider is when the event flags will be cleared. How and when is entirely up to you as the system designer, but one solution that seemed natural to me is at the bottom of the "Superduperloop" scheduler. Right at the point when the scheduler would go to sleep, we know, with 100% certainty, that each task has had the chance to respond to any event that was just posted. So we'll clear out any event flags there to allow them to be retriggered in the future.</p>
+<pre>if( !g_tasks )
+{
+    disableInterrupts();
+    if( !g_tasks )
+    {
+        g_event_flags = 0;
+        wfi();
+    }
+    enableInterrupts();
+}
+</pre>
+<p>One final detail to be addressed is that, given this solution, it would be difficult for tasks to wait for multiple events to all have occurred (e.g. " <code>if( g_event_flags &amp; (EVT1_MASK | EVT2_MASK) )</code>"). Since <code>g_event_flags</code> gets cleared anytime there's no work to be done, we can reasonably expect it to only have one flag true at a time. For a task to wait on multiple events, it will need to keep track of which events have occurred in its own event flags variable:</p>
+<pre>// main.h
+//
+enum { EVENT1_FLAG_NUM, EVENT2_FLAG_NUM };
+const int EVENT_FLAG1_MASK = (1&lt;&lt;EVENT1_FLAG_NUM);
+const int EVENT_FLAG2_MASK = (1&lt;&lt;EVENT2_FLAG_NUM);
+volatile int g_event_flags = 0;
+// TaskA.c
+//
+static int my_event_flags = 0;
+void TaskA()
+{
+    ...
+        case STATE_0:
+            my_event_flags |= g_event_flags;
+            if( my_event_flags &amp; (EVENT_FLAG1_MASK|EVENT_FLAG2_MASK) )
+            {
+                my_event_flags = 0;
+                ...
+            }
+            break;
+    ...
+}
+</pre>
+<p>Each time an event occurs, all tasks will be run. Each time Task A is run when it's in State 0, it ORs any current event flags into it's internal variable, <code>my_event_flags</code>. Thus, even if the event flag 1 bit is cleared before the event flag 2 bit is set, Task A will remember event flag 1. When the task is finally unblocked, <code>my_event_flags</code> is cleared in preparation for the next time the task needs to wait for ALL of a certain number of events to occur.</p>
+<h4 id="timers">Timer Events</h4>
+<p>For events such the timer ISR (that increments <code>g_systick</code>), it would be nice if tasks could register for a notification after a <em>certain period</em> of time, not necessarily <em>every</em> time the event occurs. For instance, maybe a task wants to wait 500 ticks of the system clock; it's a little wasteful to run the task 499 times (once for each tick of the clock) when it doesn't need to run. We can implement this feature by allowing tasks to specify a timeout value (and a reload value) when they register for a timer event. We'll store this information in an array, with one element for each task.</p>
+<pre>// main.h
+//
+enum { SYSTICK_POS };
+const int SYSTICK_MASK = (1&lt;&lt;SYSTICK_POS);
+volatile int g_systick = 0, g_event_flags = 0;
+// main.c
+//
+typedef struct
+{
+    int timeout;
+    int reloadValue;
+} timerSettings_t;
+static timerSettings_t timerSettings[NUM_TASKS] = {0};
+static volatile int timerOverflowBits = 0;
+void registerForSystickEvent(int task_num, int timeout, int reloadValue)
+{
+    timerSettings[task_num].timeout = timeout;
+    timerSettings[task_num].reloadValue = reloadValue;
+    resetOverflowBit(task_num);
+}
+void deregisterFromSystickEvent(int task_num)
+{
+    timerSettings[task_num].timeout = 0;
+}
+</pre>
+<p>Every time the timer ISR runs it loops through the array of timer settings, decrementing the timeout values of any timers that are currently running (i.e. whose <code>timeout</code> values are greater than 0). If the <code>timeout</code> value <em>was</em> greater than 0 and then <em>is</em> 0 after it's been decremented, then the task is released, a corresponding overflow bit is set, and the <code>timeout</code> value is reset to the value in <code>reloadValue</code>.</p>
+<pre>void timerISR(void)
+{
+    g_systick++;
+    atomic_fetch_or(&amp;g_event_flags, SYSTICK_MASK);
+    for( size_t idx = 0; idx &lt; NUM_TASKS; idx++ )
+    {
+        if( timerSettings[idx].timeout &gt; 0 )
+        {
+            if( --timerSettings[idx].timeout == 0 )
+            {
+                atomic_fetch_or(&amp;g_tasks, (1&lt;&lt;idx));
+                timerOverflowBits |= (1&lt;&lt;idx);
+                timerSettings[idx].timeout = timerSettings[idx].reloadValue;
+            }
+        }
+    }
+}
+</pre>
+<p>A task that is waiting on a timer can then check if it's overflow bit is set to identify when it runs that it was released by the system timer.</p>
+<pre>// main.c
+bool timerOverflowed(int task_num)
+{
+    return (timerOverflowBits &amp; (1&lt;&lt;task_num));
+}
+void resetOverflowBit(int task_num)
+{
+    atomic_fetch_and(&amp;timerOverflowBits, ~(1&lt;&lt;task_num));
+}
+// TaskA.c
+void TaskA(void)
+{
+    ...
+    registerForSystickEvent( A_NUM, 500, 0 );   // Set up a one-shot timer that will
+                                                // expire after 500 system ticks
+    if( timerOverflowed( A_NUM ) )
+    {
+        // Do something when the timer has expired
+        resetOverflowBit( A_NUM );
+    }
+    ...
+}
+</pre>
+<h2 id="i-can-do-better">"Anything you can do, I can do better!"</h2>
+<p>A neat feature of the way we've designed our "Superduperloop" is that a task can wait until <em>any </em><em>arbitrary </em><em>C expression</em> is true before continuing to run. We're not limited to just the mechanisms our RTOS provides (most of which only allow a task to wait for a <em>single</em> event, with an optional timeout). That means we can write code that blocks until any one of <em>several</em> conditions are true, such as:</p>
+<pre>if( (thread_flags &amp; SEMAPHORE1_MASK) || timerOverflowed( A_NUM ) || spiNack() )
+</pre>
+<p>Additionally, we can run code every time our task runs, even if it's still blocked. We saw an example of this, above, when we ORed <code>g_event_flags</code> with a tasks's <code>my_event_flags</code> to be able to block until multiple events had all occurred. Another example might be the situation where we want to know how many times a task is called before it gets to run. We can code that with something like the following:</p>
+<pre>static task_count = 0;
+void TaskA()
+{
+    ...
+        case STATE_0:
+            task_count++;
+            if( thread_flags &amp; SEMAPHORE1_MASK )
+            {
+                // Do something with task_count
+                task_count = 0;
+    ...
+}
+</pre>
+<p>In fact, if you're using GCC, then the conditional expression unblocking our task can also be a <em><a href="https://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html">statement expression</a></em>, combining the last two techniques:</p>
+<pre>static task_count = 0;
+void TaskA()
+{
+    ...
+        case STATE_0:
+            if( ({ task_count++; thread_flags &amp; SEMAPHORE1_MASK;}) )
+            {
+                // Do something with task_count
+                task_count = 0;
+    ...
+}
+</pre>
+<p>The possibilities abound. Let's see an RTOS do any of <em>that</em>!</p>
+<h2 id="all-together">The "Superduperloop", v2</h2>
+<p>This, then, is the "Superduperloop", <em>version 2</em>, with added support for thread flags/binary semaphores and event flags.</p>
+<pre>/*****************************************
+*     main.h                             *
+*****************************************/
+// Task priorities/bitmasks, one per task
+// E.g. enum { A_NUM, NUM_TASKS };
+//      const int A_MASK = (1&lt;&lt;A_NUM);
+//
+// Event flags
+// E.g. enum { SYSTICK_NUM, EVENT_FLAG1_NUM, EVENT_FLAG1_NUM, NUM_EVENT_FLAGS };
+//      const int SYSTICK_MASK = (1&lt;&lt;SYSTICK_NUM);
+//      const int EVENT_FLAG1_MASK = (1&lt;&lt;EVENT_FLAG1_NUM);
+//      const int EVENT_FLAG2_MASK = (1&lt;&lt;EVENT_FLAG1_NUM);
+//
+// Global variables
+volatile int g_systick = 0, g_tasks = 0, g_event_flags = 0;
+//
+/*****************************************
+*     main.c                             *
+*****************************************/
+// Variables to store which tasks have registered for each event
+static int tasks_registered_for_events[NUM_EVENT_FLAGS] = {0};
+//
+// Typedef and array to hold timer information for each task
+typedef struct
+{
+    int timeout;
+    int reloadValue;
+} timerSettings_t;
+static timerSettings_t timerSettings[NUM_TASKS] = {0};
+static volatile int timerOverflowBits = 0;
+//
+// Function prototypes for tasks here
+// E.g.  int TaskA(void);
+//
+//-----Event (de)registration functions------//
+void registerForEvent(int task_num, int event_flag)
+{
+    tasks_registered_for_events[event_flag] |= (1&lt;&lt;task_num);
+}
+void deregisterFromEvent(int task_num, int event_flag)
+{
+    tasks_registered_for_events[event_flag] &amp;= ~(1&lt;&lt;task_num);
+}
+//--End of Event (de)registration functions--//
+//--------------Timer functions--------------//
+void registerForSystickEvent(int task_num, int timeout, int reloadValue)
+{
+    timerSettings[task_num].timeout = timeout;
+    timerSettings[task_num].reloadValue = reloadValue;
+    resetOverflowBit(task_num);
+}
+void deregisterFromSystickEvent(int task_num)
+{
+    timerSettings[task_num].timeout = 0;
+}
+bool timerOverflowed(int task_num)
+{
+    return (timerOverflowBits &amp; (1&lt;&lt;task_num));
+}
+void resetOverflowBit(int task_num)
+{
+    atomic_fetch_and(&amp;timerOverflowBits, ~(1&lt;&lt;task_num));
+}
+void timerISR(void)
+{
+    g_systick++;
+    atomic_fetch_or(&amp;g_event_flags, SYSTICK_MASK);
+    for( size_t idx = 0; idx &lt; NUM_TASKS; idx++ )
+    {
+        if( timerSettings[idx].timeout &gt; 0 )
+        {
+            if( --timerSettings[idx].timeout == 0 )
+            {
+                atomic_fetch_or(&amp;g_tasks, (1&lt;&lt;idx));
+                timerOverflowBits |= (1&lt;&lt;idx);
+                timerSettings[idx].timeout = timerSettings[idx].reloadValue;
+            }
+        }
+    }
+}
+//-----------End of Timer functions----------//
+//--------------------Task-------------------//
+void main(void)
+{
+    while(1)
+    {
+        // One if/else if block per task, higher priority tasks located
+        // higher up in the chain of if statements.
+        //        
+        if( g_tasks &amp; A_MASK )
+        {
+            atomic_fetch_and(&amp;g_tasks, (~A_MASK));
+            if( TaskA() ) atomic_fetch_or(&amp;g_tasks, A_MASK);
+        }
+        else if( g_tasks &amp; B_MASK )
+        {
+            atomic_fetch_and(&amp;g_tasks, (~B_MASK));
+            if( TaskB() ) atomic_fetch_or(&amp;g_tasks, B_MASK);
+        }
+        else
+        {
+            if( !g_tasks )
+            {
+                disableInterrupts();
+                if( !g_tasks )
+                {
+                    g_event_flags = 0;
+                    wfi();
+                }
+                enableInterrupts();
+            }
+        }
+    }
+}
+</pre>
+<p>The biggest change to our main scheduler was to add a set of functions related to the system clock that allows tasks to register for timer notifications when a time value they specify expires. The other changes to the main scheduler were pretty minimal:</p>
+<ol>
+<li>we moved the task priorities enumeration, a few constant ints, and the variables <code>g_systick</code>, <code>g_tasks</code>, and <code>g_event_flags</code> to <code>main.h</code> so that the tasks could reference them,</li>
+<li>we added an enumeration, a few constant ints, and an array for the event flags, and</li>
+<li>we added one line of code to reset the event flags right as the system would go to sleep.</li>
+</ol>
+<p>That's it! The tasks were outfitted with local flags and with public "setter" functions to allow other tasks to set those flags. A sample task that&nbsp;demonstrates these two OS primitives is shown below. I've chosen to use the <a href="https://dunkels.com/adam/pt/index.html">Protothreads</a> library to help keep my FSM syntax succinct (which would also&nbsp;change the signature for the function prototypes in the associated <code>main.c</code> file).</p>
+<pre>// Receiver.c
+//
+//-------------------Thread flags--------------------------//
+enum { FLAG1_NUM, SEM1_NUM, NUM_FLAGS_TASK_A };
+const int FLAG1_MASK = (1&lt;&lt;FLAG1_NUM);
+const int SEM1_MASK = (1&lt;&lt;SEM1_NUM);
+static int thread_flags = 0;
+//---------------"Setter" functions------------------------//
+void setFlag1(void)
+{
+    atomic_fetch_or(&amp;thread_flags, FLAG1_MASK);
+    atomic_fetch_or(&amp;g_tasks, A_MASK);
+}
+void giveSem1(void)
+{
+    atomic_fetch_or(&amp;thread_flags, SEM1_MASK);
+    atomic_fetch_or(&amp;g_tasks, A_MASK);
+}
+//------------------------Task----------------------------//
+int TaskA(struct pt *pt)
+{
+    float temp;
+    PT_BEGIN(pt);
+    PT_WAIT_UNTIL( pt, thread_flags &amp; FLAG1_MASK );
+    // Do stuff when flag1 has been set
+    thread_flags = 0;
+    registerForEvent( A_NUM, EVENT_FLAG2_NUM );
+    registerForSystickEvent( A_NUM, 500, 0 );      // Create a one-shot timer to expire after 500 system ticks
+    PT_WAIT_UNTIL( pt, (event_flags &amp; EVENT_FLAG1_MASK) || timerOverflowed( A_NUM ) );
+    deregisterFromEvent( A_NUM, EVENT_FLAG2_NUM );
+    if( event_flags &amp; EVENT_FLAG1_MASK )
+    {
+        // Do something after event flag 2 has been set, otherwise...
+    }
+    else
+    {
+        // ...handle timeout
+        resetOverflowBit( A_NUM );
+    }
+    PT_WAIT_UNTIL( pt, thread_flags &amp; SEM1_MASK );
+    // Do stuff when semaphore1 has been given
+    PT_RESTART(pt);    // Resume on next task release at "PT_BEGIN"
+    PT_END(pt);
+}
+</pre>
+<h2 id="summary">Summary</h2>
+<p>Real embedded applications need not only a scheduler but also a means for the tasks in that application to communicate with each other (inter-process communication [IPC]). We can organize the various forms of IPC by whether they are meant (1) to be point-to-point or broadcast signals and (2) to convey binary or arbitrary data.</p>
+<table border="1">
+<tbody>
+<tr>
+<td></td>
+<td><strong>Point-to-point </strong></td>
+<td><strong>Broadcast</strong></td>
+</tr>
+<tr>
+<td><strong>Binary data</strong></td>
+<td>Thread flag/Binary Semaphore<br>Counting semaphore</td>
+<td>Event flag</td>
+</tr>
+<tr>
+<td><strong>Arbitrary data</strong></td>
+<td>Mailbox<br>Observer<br>Message queue<br>Stream buffer<br><a href="https://www.amazon.com/Patterns-Machine-Software-Engineering-Development/dp/1484264398">Model Points</a></td>
+<td>Marquee<br>PubSub</td>
+</tr>
+</tbody>
+</table>
+<p>The best "off the shelf" options for fixed-priority, non-preemptive schedulers include ULWOS2, cocoOS, and SST0/QV. Additionally, with a little bit of work, it's not hard to add all of the above forms of IPC to the "Superduperloop" (of which we discussed two in this article). The tables below summarize these options; each solution offers a different mix of features and complexity.</p>
+<p><strong>Advantages and Disadvantages</strong></p>
+<table border="1">
+<tbody>
+<tr>
+<td></td>
+<td><strong>Advantages</strong></td>
+<td><strong>Disadvantages</strong></td>
+</tr>
+<tr>
+<td><strong>ULWOS2</strong></td>
+<td>
+<ul>
+<li>Simple</li>
+</ul>
+</td>
+<td>
+<ul>
+<li>Employs something akin to a dynamic task priority scheme for tasks assigned the same priority level, complicating schedulability analysis</li>
+<li>No support for sleeping if idle</li>
+<li>Uses <code>goto</code>s to implement coroutine behavior (instead of <code>switch...case</code>), which may be undesirable for some</li>
+</ul>
+</td>
+</tr>
+<tr>
+<td><strong>cocoOS</strong></td>
+<td>
+<ul>
+<li>The most features of any OS here</li>
+</ul>
+</td>
+<td>
+<ul>
+<li>Supports sleeping, but with possible error</li>
+<li>All messages inherit from a base class (use of inheritance [especially in C!] may be difficult for some)</li>
+</ul>
+</td>
+</tr>
+<tr>
+<td><strong>SST0/QV</strong></td>
+<td>
+<ul>
+<li>Highly reputable author (Miro Samek)</li>
+<li>Likely to be the most stable/bug-free</li>
+</ul>
+</td>
+<td>
+<ul>
+<li>Uses message-passing paradigm only (may feel odd to some)</li>
+<li>All events inherit from a base class (use of inheritance [especially in C!] may be difficult for some)</li>
+<li>SST0 is limited (as written) to only 8 tasks</li>
+<li>Not (easily) possible for tasks to yield in the middle of processing an event</li>
+<li>SST0 does not currently recycling the memory used to create events (possible memory leak)</li>
+</ul>
+</td>
+</tr>
+<tr>
+<td><strong>"Superduperloop"<br></strong></td>
+<td>
+<ul>
+<li>Simple</li>
+<li>Tasks can wait on any valid C/C++ expression</li>
+</ul>
+</td>
+<td>
+<ul>
+<li>(Currently) Only supports thread and event flags</li>
+<li>It may feel tedious (to some) to need to write separate functions inside each task's source file for setting the individual thread flags</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Features</strong></p>
+<table border="1">
+<tbody>
+<tr align="center">
+<td></td>
+<td><strong>ULWOS2</strong></td>
+<td><strong>cocoOS</strong></td>
+<td><strong>SST0/QV</strong></td>
+<td><strong>"Superduperloop"</strong></td>
+</tr>
+<tr>
+<td>Thread flags</td>
+<td bgcolor="#c24641">N</td>
+<td bgcolor="#c24641">N</td>
+<td bgcolor="#c24641">N</td>
+<td bgcolor="#50c878">Y</td>
+</tr>
+<tr>
+<td>Binary Semaphores</td>
+<td bgcolor="#c24641">N</td>
+<td bgcolor="#DFBC40">Y (but not thread-safe)</td>
+<td bgcolor="#c24641">N</td>
+<td bgcolor="#50c878">Y</td>
+</tr>
+<tr>
+<td>Event flags</td>
+<td bgcolor="#50c878">Y</td>
+<td bgcolor="#50c878">Y</td>
+<td bgcolor="#c24641">N (but does include timer notifications)</td>
+<td bgcolor="#50c878">Y</td>
+</tr>
+<tr>
+<td>Mailbox/Message queues</td>
+<td bgcolor="#DFBC40">Y (but not thread-safe)</td>
+<td bgcolor="#DFBC40">Y (but not thread-safe)</td>
+<td bgcolor="#50c878">Y</td>
+<td bgcolor="#c24641">N</td>
+</tr>
+<tr>
+<td>Complexity</td>
+<td bgcolor="#DFBC40">Medium (~500 LOC)</td>
+<td bgcolor="#c24641">High (~2000 LOC)</td>
+<td bgcolor="#DFBC40">
+<ul>
+<li>SST0: Medium (~400 LOC)</li>
+<li>QV: High (~1900 LOC)</li>
+</ul>
+</td>
+<td bgcolor="#50c878">Low (~50-100 LOC)</td>
+</tr>
+</tbody>
+</table>
+<p>Hopefully now you're ready to start writing your next embedded application with one of those schedulers, absent (almost) any concerns about race conditions! In the last article in this series we'll design our third (and final) iteration of the "Superduperloop", that will include support for not just thread and event flags but also counting semaphores, mailboxes, message queues, the Observer pattern,&nbsp;and "marquee"s. Additionally, I'll show you how you can further improve the schedulability of your task sets by using a <em>dynamic</em>-priority, non-preemptive scheduler designed around a <strong>dispatch queue</strong> (i.e. a queue of tasks). Stay tuned, my friends, for our thrilling series finale!</p>
+<h2 id="references">References</h2>
+<ul>
+<li>Other cool Superloops
+<ul>
+<li><a href="https://dunkels.com/adam/pt/index.html">Protothreads</a></li>
+<li>ULWOS2 (article: <a href="https://embeddedsystems.io/ulwos2-a-simple-cooperative-os-part-1/">part 1</a> and <a href="https://embeddedsystems.io/ulwos2-a-simple-and-lightweight-cooperative-os-part-2/">part 2</a> | <a href="https://github.com/fabiopjve/ULWOS2">code</a>)</li>
+<li><a href="https://github.com/cocoOS/cocoOS/tree/master">cocoOS</a></li>
+<li>SST0 (<a href="https://www.youtube.com/watch?v=PTcauYl994A">video</a> | <a href="https://github.com/QuantumLeaps/Super-Simple-Tasker">code</a>) / QV (<a href="https://www.state-machine.com/qpc/api.html#api_qv">docs</a> | <a href="https://github.com/QuantumLeaps/qpc">code</a>)</li>
+</ul>
+</li>
+<li>Documentation about OS primitives / IPC
+<ul>
+<li><a href="https://www.freertos.org/features.html">FreeRTOS</a></li>
+<li><a href="https://www.keil.com/pack/doc/CMSIS/RTOS2/html/rtos2_tutorial.html#rtos2_tutorial_interthread_com">CMSIS RTX5</a></li>
+</ul>
+</li>
+<li><a href="https://www.researchgate.net/publication/316791005 ">Managing Concurrency in Complex Embedded Systems</a> by David Cummings</li>
+<li><a href="https://www.state-machine.com/doc/Kalinsky2010.pdf">Messages for Intertask Communication</a> by D. Kalinsky</li>
+<li><a href="https://gameprogrammingpatterns.com/event-queue.html">Event Queue</a> by Game Programming Patterns</li>
+</ul>

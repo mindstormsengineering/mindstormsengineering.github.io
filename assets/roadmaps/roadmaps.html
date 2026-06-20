@@ -1,0 +1,120 @@
+<h1>Embedded Systems Roadmaps</h1>
+<p>by Nathan Jones</p>
+<img src="/home/nathancharlesjones/Documents/Work/llc_assets/logo_full.png" width="300">
+<h2>Introduction</h2>
+<p>What does it mean to be an "embedded systems engineer"? What skills would it be beneficial for you to develop if you want to be a successful one? Whether you've only just finished your first Arduino project or you've been building embedded systems for decades, we could all benefit from periodically assessing our skills against a baseline and identifying new skills that we can learn. What follows are a handful of opinions&nbsp;about the skills that should be considered as part of a core body of embedded systems or software engineering knowledge. I want to emphasize the word "opinions" because there is no <em>one </em>answer to what an embedded systems engineer should know (nor is there, really, for any field). Nonetheless, these "opinions" can be useful to identify the things "we don't know that we don't know", helping make us more well-rounded engineers. (I feel like I experience serendipity all the time in my professional career, by pursuing things of their own accord to make myself a better engineer and then, surprise!, it's needed on a project on which I'm working.) I hope you enjoy this list!</p>
+<h2>ACM Curriculum Guidelines for Undergraduate Degree Programs in Computer Engineering (2016)</h2>
+<p>The Association of Computing Machinery periodically provides recommendations to undergraduate schools about what to include in certain degree paths and a section of their <a href="https://www.acm.org/binaries/content/assets/education/ce2016-final-report.pdf">recommendations from 2016</a> for a computer engineering degree includes skills and knowledge related to embedded systems. Starting on page 80 of the PDF linked above, the ACM provides a list of course objectives applicable to a one-semester course on embedded systems, which includes the following subject areas:</p>
+<figure><center><img src="https://imgur.com/UlmqLuW.jpg"></center></figure>
+<p>This is your typical "intro to embedded systems" course, with the goal being to introduce a student to their first microcontroller, which they will program in an IDE with either the vendor HAL or peripheral registers. They are taught what an embedded system is, how they are programmed and built, and how to use the peripherals on the microcontroller such as GPIO, timers, interrupts, UART, SPI, and I2C. Some courses will also discuss the basics of multitasking, RTOSes, networking, or other useful concepts.</p>
+<p>In fact, the other courses listed by the ACM as part of an undergraduate degree in computer engineering (shown below) also seem applicable to a course of study for an embedded systems engineer.</p>
+<figure><center><img src="https://imgur.com/qtE7T7e.jpg"></center></figure>
+<p>Recommended math courses include</p>
+<ul>
+<li>Analysis of Continuous Functions,</li>
+<li>Discrete structures,</li>
+<li>Linear algebra, and&nbsp;</li>
+<li>Probability and statistics.</li>
+</ul>
+<p>The PDF linked above lists recommended course objectives for each of the above courses. A few excellent books (based solely on my own opinion) that discuss these introductory concepts are listed below.</p>
+<ul>
+<li><a href="https://www.amazon.com/Making-Embedded-Systems-Patterns-Software/dp/1449302149">Making Embedded Systems</a> (Elecia White)
+<ul>
+<li>One of the few (only?) introductory books I know of that's truly MCU-agnostic</li>
+<li>Note: A second edition is set to be published in March 2024</li>
+</ul>
+</li>
+<li><a href="https://www.amazon.com/Programming-Embedded-Systems-Development-Tools/dp/0596009836/ref=tmm_pap_swatch_0?_encoding=UTF8&amp;qid=&amp;sr=">Programming Embedded Systems</a><a href="https://www.amazon.com/Programming-Embedded-Systems-Development-Tools-ebook/dp/B0043M52KO/ref=tmm_kin_swatch_0?_encoding=UTF8&amp;qid=&amp;sr="></a> (Michael Barr)</li>
+<li><a href="https://www.amazon.com/AVR-Programming-Learning-Software-Technology/dp/1449355781/ref=tmm_pap_swatch_0?_encoding=UTF8&amp;qid=1699539771&amp;sr=1-1">AVR Programming</a><span class="redactor-invisible-space"><a href="https://www.amazon.com/AVR-Programming-Learning-Software-Technology/dp/1449355781/ref=tmm_pap_swatch_0?_encoding=UTF8&amp;qid=1699539771&amp;sr=1-1"></a> (Elliot Williams)</span></li>
+<li><span class="redactor-invisible-space"><a href="https://www.amazon.com/Embedded-Systems-Architecture-architectural-pragmatic/dp/1788832507/ref=tmm_pap_swatch_0?_encoding=UTF8&amp;coliid=I3G86T2WI7ILSN&amp;colid=183D8VTFXNQ2A&amp;qid=&amp;sr=">Embedded Systems Architecture</a><span class="redactor-invisible-space"><a href="https://www.amazon.com/Embedded-Systems-Architecture-architectural-pragmatic/dp/1788832507/ref=tmm_pap_swatch_0?_encoding=UTF8&amp;coliid=I3G86T2WI7ILSN&amp;colid=183D8VTFXNQ2A&amp;qid=&amp;sr="></a> (Daniele Lacamera)<br></span></span></li>
+</ul>
+<h2>Embedded Skills Tree (Elecia White)</h2>
+<p>Elecia White, host of the Embedded.fm podcast and author of <a href="https://www.amazon.com/Making-Embedded-Systems-Patterns-Software/dp/1449302149">Making Embedded Systems</a>, has written an <a href="https://embedded.fm/blog/2023/5/19/embedded-skills-tree">embedded systems skills tree using a neat hexagonal chart</a>.</p>
+<figure><center><iframe src="https://static1.squarespace.com/static/50834ba9c4aa1a31c651078b/t/65282cd79af38b46be8da4db/1697131736219/20231012_Embedded_Systems_Skill_Tree.pdf" width="700" height="500" sandbox=""></iframe></center></figure>
+<p>The idea is that you start at the bottom, with "Get an Arduino", and once that skill or task has been completed, you move on to any other task that shares an edge with that task and repeat.&nbsp;The chart expands outwards and upwards and is set up to encourage multiple different paths to achieving mastery.</p>
+<p>The list is broad and it includes both skills that might fall into an introduction to embedded systems course ("Configure a timer", "Implement a state machine", "Implement MCU sleep in a low-power project") and also more advanced skills that commercial embedded systems projects might need ("Write a bootloader", "Use a multi-core processor", "Create a CI/CD system").</p>
+<h2>Embedded Systems Engineering Roadmap (Meysam Parvizi)</h2>
+<p>Meysam Parvizi [m3y54m] is a GitHub user who's created an <a href="https://github.com/m3y54m/Embedded-Engineering-Roadmap">embedded systems roadmap</a> that covers everything from using a multimeter to understanding CAN.</p>
+<figure><center><img src="https://imgur.com/6M3Vmtc.jpg" width="700"></center></figure>
+<p>It's a thorough list, though the idea that certain skills are "required" should <em>maybe</em> be taken with a grain of salt. When this roadmap was discussed on the Embedded.fm Slack I also remember some folks thinking that the application areas (automotive, aerospace, agriculture, etc) should have been given greater emphasis.&nbsp;Like many fields, having a broad skill set can make you marketable and useful on many different projects but it's the specific skills that are needed to accomplish the task at hand (which can vary greatly from field to field and even project to project) that can make you invaluable to a specific team.</p>
+<h2>Better Embedded Systems by Philip Koopman</h2>
+<p>In 2010, Philip Koopman, a long-time embedded systems engineer who specializes in safety-critical systems, <a href="https://www.amazon.com/Better-Embedded-System-Software-Koopman/dp/B08TZ9LYXC/ref=sr_1_1?crid=O50Q0YRBCMA9&amp;keywords=better+embedded+system+software+-+philip+koopman&amp;qid=1699546679&amp;sprefix=better+em%2Caps%2C655&amp;sr=8-1">published a book</a> that described&nbsp;all of the ways in which embedded systems designs tend to fail their design reviews, including discussions of everything from software architecture to the use of mutexes to designing for reliability.</p>
+<figure><center><img src="https://imgur.com/4WkFgxu.jpg" width="700"></center></figure>
+<p>I've sometimes described this book as "showing you everything you have yet to learn" about embedded systems, by which I mean it pretty well encompasses the skills (beyond those covered in an introductory course) that someone might need in their career to build and produce high-quality embedded systems. It makes an excellent follow-up to an introductory course, especially if one uses it to generate further study in one or more of the book's subject areas. The treatment of all but a few topics is, unfortunately and expectedly, a little sparse and my biggest complaint is that Phillip doesn't really provide many references for further research (even though each chapter ends with a "Resources" section). Also, the book doesn't discuss hardware much at all, as could have been predicted by the book's title.</p>
+<h2>Software Engineering Body of Knowledge (IEEE Computing Society)</h2>
+<p>Not to be outdone by the ACM, the IEEE Computing Society has also produced a guide to their definition of a "software engineering body of knowledge" for several years. Their guide (available <a href="https://www.computer.org/education/bodies-of-knowledge/software-engineering">here</a>) lists 15 knowledge areas.</p>
+<figure><center><img src="https://imgur.com/SQntuia.jpg"></center></figure>
+<p>The knowledge areas are fairly comprehensive (reminiscent of the ACM guidelines above) but, like "Better Embedded System Software", the list doesn't really include any hardware considerations.</p>
+<h2>Software Systems Engineering Programmes: A Capability Approach (Landwehr, et al.)</h2>
+<p>In 2017, an octet of software engineering researchers (that included famed software engineer and researcher David Parnas) <a href="http://www.landwehr.org/2017-01-08-landwehr-et-al.pdf">published a paper</a> that discussed the capabilities that they believed software engineers needed to be successful in their jobs.</p>
+<ol>
+<li>Communicate precisely between developers and stakeholders</li>
+<li>Communicate precisely among developers</li>
+<li>Design human-computer interfaces</li>
+<li>Design and maintain multi-version software
+<ul>
+<li>Identify and separate changeable concerns</li>
+<li>Document to ease revision</li>
+<li>Use parameterization</li>
+<li>Design software that can be moved to many platforms</li>
+<li>Design software that is easily extended or contracted</li>
+<li>Design and maintain products that will be offered in many versions</li>
+</ul>
+</li>
+<li>Design software for reuse</li>
+<li>Ensure that software products meet quality standards</li>
+<li>Develop secure software</li>
+<li>Create and use models in system development</li>
+<li>Specify, predict, analyze and evaluate performance</li>
+<li>Be disciplined in development and maintenance</li>
+<li>Use metrics in system development</li>
+<li>Manage complex projects</li>
+</ol>
+<p>The authors state that many current computer science degrees don't teach these skills because computer science is a "research field" while software engineering is a "class of professions". Additionally, they claim that the capabilities listed are fundamental to the discipline of software engineering and, therefore, somewhat timeless. I think it's a good list, particularly in that it seems to acknowledge the skills most often needed for building successful embedded systems "in the wild", more than merely being able to understand or design them.</p>
+<h2>[Added 20 Feb 24] Skills for Embedded Systems Software Developers (Steve Branam)</h2>
+<p>In 2022, Steve Branam, another excellent author for Embedded Related, wrote an <a href="https://www.embeddedrelated.com/showarticle/1460.php">article</a> similar to this one (I can't believe I missed it before!). He lists important knowledge areas such as data structures, basic electronics, processor architecture, and toolchains.</p>
+<ol>
+<li>Software
+<ol>
+<li>Programming languages</li>
+<li>Numbers</li>
+<li>Data structures and algorithms</li>
+<li>OOP</li>
+<li>Design patterns</li>
+<li>Memory management</li>
+<li>Data communications</li>
+<li>Security</li>
+<li>Embedded system behavior and support</li>
+<li>Runtime models</li>
+<li>Signal processing</li>
+</ol>
+</li>
+<li>Hardware
+<ol>
+<li>Basic electronics</li>
+<li>CPU architecture</li>
+<li>MCU architecture</li>
+<li>Communications modems and hardware</li>
+<li>Debug interfaces</li>
+<li>Board architecture</li>
+</ol>
+</li>
+<li>Software development tools and processes<br>
+<ol>
+<li>Toolchains</li>
+<li>Build systems</li>
+<li>IDEs</li>
+<li>Source control management systems (e.g. Git)</li>
+<li>Diagramming and modeling</li>
+<li>Test systems</li>
+</ol>
+</li>
+</ol>
+<p>I particularly like that Steve included an entire section for software development tools and processes. In my experience, this is a topic which is lacking in many educational settings, presumably because many educators feel like it gets "in the way" of the real course objectives (actually programming and using a specific microcontroller).</p>
+<h2>"Embedded systems is too broad; there's no way to create a single list of core skills that every embedded systems engineer is supposed to know!" or "I've been an embedded systems engineer for over 40 years and I've never needed X" and related <del>complaints</del> counterarguments</h2>
+<p>Regarding the former, I think this statement is patently false. E<span class="redactor-invisible-space"><span class="redactor-invisible-space">mbedded systems&nbsp;doesn't<span class="redactor-invisible-space"> have a monopoly on being a "very broad discipline"; computer science is equally broad and the field of medicine is arguably much, much broader! Both of those fields somehow manage to identify a core set of required knowledge</span></span></span> for every practitioner (as evidenced by their respective degree paths) and I think it's possible for embedded systems to do the same. Even <span class="redactor-invisible-space"><span class="redactor-invisible-space"><a href="https://dl.acm.org/doi/abs/10.1145/1086519.1086528">this paper</a></span></span>, which seems to advocate for embedded systems education to look like apprenticeships, admits that there are certain skills which are commonly lacking in entry-level embedded systems engineers and which, therefore, would be good to include in an introductory course of study. Additionally, although the specific tools that are used might change, I think it <em>is</em> possible to enumerate a set of skills that every embedded systems engineer ought to know. The exact nature of "debugging" might look different from project to project, but I would argue that <em>all</em> embedded systems engineers need to be good debuggers, for example.</p>
+<p>Further, if embedded systems really doesn't have a core skill set and if it's really best taught like an apprenticeship then we've begun to relegate it more to the realm of "trade" than "engineering discipline". The emergence of coding "boot camps" is the result of a similar push in the realm of computer science, I think, and it seems that although this helps create more people to fill the job of writing software it doesn't produce people who can necessarily write <em>good</em> software or, maybe more fairly, <em>architect good software systems</em>. With the rise of software and embedded systems in financial systems, avionics, and automobiles, I think there's an imperative to not just make <em>working</em> embedded systems but <em>robust and secure</em><span class="redactor-invisible-space"> embedded systems, qualities that don't necessarily arise when something is taught merely as a trade. On a related note, and speaking to the second counterargument above, I think it's to our own benefit to establish and have a broad skill set. Although developing an embedded system based on an 8-bit microcontroller is vastly different from developing one for an application processor running embedded Linux, I would argue that the embedded systems developer who specializes in programming the former and who has <em>never</em> programmed the latter is doing themselves a disservice. Although it's definitely <em>possible</em> to have a long and successful career as an embedded systems engineer without knowing certain skills that others would consider important, I believe that learning those skills helps make one a more well-rounded engineer and improves their work in the areas where they do most of their work.<br></span></p>
+<p>For these reasons, I think that embedded systems engineers <em>can</em> and <em>should</em><span class="redactor-invisible-space"> define </span>a core skill set that all embedded systems engineers should strive to know.</p>
+<h2>Wrapping Up</h2>
+<p>First,&nbsp;take a breath! You might be feeling overwhelmed right now about how much you don't know and I'm here to tell you that <em>it's okay to have lots left to learn</em>! If you enjoy this field then think of it like being a master craftsman: there is joy in getting better, regardless of how close or far away the goal seems to be. Then, pick an area above that you don't know much about and start learning! Do an internet search for a term you aren't familiar with, pick up one of the books or PDFs I linked, or come up with a fun project you can complete that will require a skill you don't know how to do yet. I wish you all the best on your journey!</p>
+<p>Do you have a favorite embedded systems roadmap or topic that wasn't listed? Do you have a favorite book about embedded systems that other folks should know about? Then you can also sound off in the comments to help make our community better!</p>

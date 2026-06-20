@@ -1,0 +1,938 @@
+<h1>You Don't Need an RTOS (Part 4)</h1>
+<p>by Nathan Jones</p>
+<img src="/home/nathancharlesjones/Documents/Work/llc_assets/logo_full.png" width="300">
+<p>At least, probably not as often as you think you do. Using a preemptive RTOS can help make a system schedulable (i.e. help all of its tasks meet their deadlines) but it comes at a cost: "concurrently" running tasks can interact in unforeseen ways that cause system failures, that dreaded class of errors known as "race conditions". In part, this is because humans have difficulty thinking about things that happen concurrently. Using the venerable superloop can help avoid this problem entirely and, in some cases, it can actually make a system work that wouldn't work at all using an RTOS! Additionally, a "superloop" style scheduler has the benefit of being simple enough for you to write yourself in a few dozen lines of code.</p>
+<p>If you're unfamiliar with terms like "deadlines", "schedulability", or "worst-case response time", then I would argue you are almost <em>definitely</em> using an RTOS prematurely! If you <em>are</em> familiar with those terms, allow me to show you a few ways to improve the superloop that bring its performance nearly on par with an RTOS, with no concern about race conditions.</p>
+<p><em>This is the fourth (and final!) in a series of posts lauding the advantages of the simple "superloop" scheduler. Other articles in this series are or will be linked below as they are published.</em></p>
+<ul>
+<li><a href="https://www.embeddedrelated.com/showarticle/1636.php">Part 1: Comparing Superloops and RTOSes</a></li>
+<li><a href="https://www.embeddedrelated.com/showarticle/1652.php">Part 2: The "Superduperloop"</a></li>
+<li><a href="https://www.embeddedrelated.com/showarticle/1653.php">Part 3: Other Cool Superloops and DIY IPC</a></li>
+<li>Part 4: More DIY IPC (this article)</li>
+</ul>
+<h2>Contents</h2>
+<ul>
+<li><a href="#part-4">Part 4: More DIY IPC</a></li>
+<li><a href="#a-quick-recap">A Quick Recap</a></li>
+<li><a href="#mailboxes">Mailboxes</a>
+<ul>
+<li><a href="#basic-mailboxes">Basic Mailbox</a></li>
+<li><a href="#different-data">Posting Arbitrary Data Types to a Mailbox</a></li>
+<li><a href="#mailbox-pointers">Posting Pointers to a Mailbox</a></li>
+</ul>
+</li>
+<li><a href="#queues">Queues</a>
+<ul>
+<li><a href="#schedulability-of-a-queue">Schedulability of a Queue</a></li>
+</ul>
+</li>
+<li><a href="#counting-semaphores">Counting Semaphores</a></li>
+<li><a href="#observer">The Observer Pattern</a></li>
+<li><a href="#marquee">Marquee</a></li>
+<li><a href="#dispatch-queue">Alternative Design: Dispatch Queue</a>
+<ul>
+<li><a href="#schedulability-of-a-dispatch-queue">Schedulability of a Dispatch Queue</a></li>
+</ul>
+</li>
+<li><a href="#superduperloop-v3">The "Superduperloop", v3</a></li>
+<li><a href="#summary-article">Summary of This Article</a></li>
+<li><a href="#summary-series">Summary of "You Don't Need an RTOS"</a></li>
+<li><a href="#references">References</a></li>
+</ul>
+<h2 id="part-4">Part 4: More DIY IPC</h2>
+<p>In this fourth (and final!) article I'll share with you the last of the inter-process communication (IPC) methods I mentioned in Part 3: mailboxes/queues, counting semaphores, the Observer pattern, and something I'm calling a "marquee". When we're done, we'll have created the scaffolding for tasks to interact in all of the ways depicted below.</p>
+<figure><center><img src="https://imgur.com/5vHIKPd.png" height="400"></center></figure>
+<p>Additionally, I'll share with you another alternative design for a non-preemptive scheduler called a <strong>dispatch queue</strong> that is simple to conceptualize and, like the <a href="https://www.embeddedrelated.com/showarticle/1652.php#time-triggered-scheduler">time-triggered scheduler</a>, can help you schedule some of your most difficult task sets.</p>
+<h2 id="a-quick-recap">A Quick Recap</h2>
+<p>In Part 3 of this series, I shared with you three non-preemptive schedulers that you can potentially use on your next project: ULWOS2, cocoOS, and SST0/QV. Additionally, I demonstrated how we could add thread flags/binary semaphores and event flags to the "Superduperloop". Although it takes a <em>little</em> bit of work to add these different forms of IPC to the "Superduperloop" (as opposed to using one of those other three non-preemptive schedulers), doing so will give you the maximum amount of control over how your scheduler runs, which can be a very useful thing indeed.</p>
+<h2 id="mailboxes">Mailboxes</h2>
+<h3 id="basic-mailboxes">Basic Mailboxes</h3>
+<p>Mailboxes are a form of point-to-point signaling that would be used when more information than a binary value needs to be communicated; a mailbox (really, just a local variable) is like a queue with room for only one message. Whereas the "setter" functions in the last article took no values (the flag that was being set was determined by the function that was called), the "setter" function for a mailbox will need to know the value(s) that are to be copied into the local variable. The process is essentially the same as for triggering a thread flag or semaphore: another task calls a function which copies the data into the mailbox and sets a thread flag and the task's ready bit, subsequently unblocking the task that is waiting for a message to appear in its mailbox.</p>
+<pre>// TaskA.c
+//
+enum { MBX_NUM };
+const int MBX_MASK = (1&lt;&lt;MBX_NUM);
+static volatile int myVal;
+void postMsg(int val)
+{
+    myVal = val;  // Assuming storing to myVal is atomic; otherwise, 
+                  // make sure to turn interrupts off before and back
+                  // on after or use atomic_store(&amp;myVal, val);
+    atomic_fetch_or(&amp;thread_flags, MBX_MASK);
+    atomic_fetch_or(&amp;g_tasks, A_MASK);
+}
+void TaskA()
+{
+    ...
+        case STATE_0:
+            if( thread_flags &amp; MBX_MASK )
+            {
+                // Use myVal
+            }                                
+    ...
+}
+</pre>
+<p>The "mailbox" here is merely an integer that gets copied to when <code>postMsg</code> is called. Like you might expect, writing to the mailbox needs to be atomic, otherwise we'll have a race condition. Here, I'm assuming that writing an integer to memory <em>is</em> atomic on whatever processor that's running this scheduler.</p>
+<h3 id="different-data">Posting Arbitrary Data Types to a Mailbox</h3>
+<p>We aren't restricted to posting only one type of message to our mailbox, either. We can post <em>different </em>types of messages as long as the task has a way of differentiating each message! One such method is <a href="https://en.wikipedia.org/wiki/Type%E2%80%93length%E2%80%93value">TLV</a> or "tag-length-value". Messages are simply copied, byte-for-byte, into the mailbox (which needs to be large enough to hold the largest message) and the task can decide what to do with the message by looking at the tag value. An example of a task that might benefit from this is a motor controller: different tasks in the system can send different messages to the motor controller that specify speed or direction and the motor controller can set the motor accordingly. One possible implementation of this is shown below.</p>
+<pre>// TaskA.h
+//
+#define MAX_MSG_SIZE 10
+typedef enum
+{
+    speed_msg,
+    direction_msg
+} msg_type_t;
+// TaskA.c
+//
+enum { MBX_NUM };
+const int MBX_MASK = (1&lt;&lt;MBX_NUM);
+typedef struct
+{
+    msg_type_t tag;
+    size_t     length;
+    uint8_t    payload[MAX_MSG_SIZE+1];
+} mailbox_t;
+static volatile mailbox_t mailbox = {0};
+void postMsg(msg_type_t tag, size_t length, uint8_t * data)
+{
+    mailbox_t temp = {0};
+    temp.tag = tag;
+    temp.length = (length &lt; MAX_MSG_SIZE) ? length : MAX_MSG_SIZE;
+    for( size_t idx = 0; idx &lt; temp.length; idx++ ) temp.payload[idx] = *(data+idx);
+    atomic_store(&amp;mailbox, temp);
+    atomic_fetch_or(&amp;thread_flags, MBX_MASK);
+    atomic_fetch_or(&amp;g_tasks, A_MASK);
+}
+void TaskA()
+{
+    ...
+    if( thread_flags &amp; MBX_MASK )
+    {
+        mailbox_t temp = atomic_load(&amp;mailbox);
+        switch( temp.tag )
+        {
+            case speed_msg:
+                ...
+            case direction_msg:
+                ...
+        }
+    }
+    ...
+}
+</pre>
+<p>It's important to note that atomicity gets weird for structs; we need to do more than just read the struct <em>members</em> atomically, we need to read the <em>entire struct</em> atomically. That's why I created <code>temp</code> variables in the code above, so that we could use <code>atomic_store</code> and <code>atomic_load</code>.</p>
+<h3 id="mailbox-pointers">Posting Pointers to a Mailbox</h3>
+<p>If the data to copy is large, you may only want to copy a <em>pointer</em> to the data in to the mailbox.</p>
+<pre>static volatile largeStruct_t * mailbox;
+void postMsg(largeStruct_t * val)
+{
+    mailbox = val;
+    atomic_fetch_or(&amp;thread_flags, MBX_MASK);  // Optional
+    atomic_fetch_or(&amp;g_tasks, A_MASK);
+}
+</pre>
+<p>To do so correctly, you'll need to establish if/when a sender is allowed to update the data at that pointer and what the receiver should do (if anything) when its done with the data (primarily to avoid any memory leaks). Those topics, though, will have to wait for <a href="https://www.digikey.com/en/maker/tutorials/2025/message-passing-with-pointers">another article!</a></p>
+<p>Copying a pointer also gives you another option for sending arbitrary data to the mailbox: by copying a pointer to a "parent" struct from which different data types "inherit" (by putting the parent struct at the top of their struct definitions). The code below shows a mailbox that accepts a pointer to a generic piece of data which, for the moment, only contains an enumeration.</p>
+<pre>// TaskA.h
+//
+typedef struct
+{
+    enum { MYDATA_T } tag
+} genericData_t;
+// TaskA.c
+//
+static volatile genericData_t * mailbox;
+void postMsg(genericData_t * val)
+{
+    mailbox = val;
+    atomic_fetch_or(&amp;thread_flags, MBX_MASK);
+    atomic_fetch_or(&amp;g_tasks, A_MASK);
+}
+</pre>
+<p>The sender would define a piece of data like this:</p>
+<pre>// Sender.h
+//
+typedef struct
+{
+    genericData_t parent;
+    int           myInt;
+    char          myString[10];
+} myData_t;
+</pre>
+<p>The sender can then create and populate an instance of <code>myData_t</code> and post its pointer to the mailbox, since a pointer to <code>myData_t</code> <em>is also a</em> pointer to <code>genericData_t</code> (with some extra stuff after it). The receiver can recover the message based on the value of <code>tag</code>, which should be a unique number corresponding to the <code>myData_t</code> type, by casting to the correct type.</p>
+<pre>// TaskA.c
+//
+void TaskA(void)
+{
+    ...
+    if( thread_flags &amp; MBX_MASK )
+    {
+        mailbox_t temp = atomic_load(&amp;mailbox);
+        switch( temp.tag )
+        {
+            case MYDATA_T:
+                myData_t * myData = (myData_t*)(&amp;temp);
+                ...
+        }
+    }
+    ...
+}
+</pre>
+<p>This is exactly how SST0 and QV handle putting arbitrary events into each tasks' queue. You can read more about this technique at Miro Samek's <a href="https://www.state-machine.com/oop">website</a>.</p>
+<h2 id="queues">Queues</h2>
+<p>A queue solves the problem of having data arriving more quickly than our task can process it: we can add that value to a queue instead of having to decide whether or not to overwrite our mailbox. Functionally, a queue and a mailbox work the same and everything we've just discussed about mailboxes apply equally well to queues. I'll not try to reinvent the wheel here by creating my own queue implementation, but I'll happily help you find one if you post a request in the comments!</p>
+<p>The very thing that makes queues useful, though, is the thing that makes them difficult to analyze! The exact situation we're trying to solve with a queue (or a counting semaphore, see <a href="#counting-semaphores">below</a>) is when events arrive faster than our system can handle them. Queueing them up allows our system to respond more slowly, <em>eventually</em> handling all of the events, without needing to respond to each one as it arrives and before the next one shows up. <em>But this violates our second <a href="https://www.embeddedrelated.com/showarticle/1636.php#critical-assumptions">critical assumption</a> from the first article!</em> We would describe that task as having a <em>short</em> period (equating to the fastest inter-arrival time of our events) but a <em>long</em> deadline (corresponding to the time in the future when all of the events should be handled). Unfortunately, this invalidates the worst-case response time analysis we did in the second article in this series. We'll need to revisit the drawing board, as they say, to determine the schedulability of a system that has tasks with deadlines longer than their periods.</p>
+<p>To clarify, just because a task has a queue doesn't <em>necessarily</em> mean that our schedulability analysis is invalidated. It's the tasks that use a queue <em>for the purpose of having a deadline that is longer than their period</em> that invalidate our previous analysis. The two sample tasks below may help demonstrate this differentiation.</p>
+<p>Task A is released by a timer every 500 ms and waits for three separate events before it's finished with its work. Task A uses a queue to store those events when they occur. Task A's deadline is 500 ms because that's when the timer will next have it run. Task A <u><strong>does not</strong></u> invalidate our analysis (though if it has to wait a compartively long time for the events to post to its queue, then our calculation of its WCRT will be optimistically low, since we also assumed in our first article that <a href="https://www.embeddedrelated.com/showarticle/1636.php#critical-assumptions">tasks don't block each other</a>).</p>
+<center>
+<table border="1">
+<tbody>
+<tr>
+<th>Task</th>
+<th>Execution time (ms)</th>
+<th>Period (ms)</th>
+<th>Deadline (ms)</th>
+</tr>
+<tr align="center">
+<td>A</td>
+<td>100</td>
+<td>500</td>
+<td>500</td>
+</tr>
+</tbody>
+</table>
+</center>
+<figure><center><img src="https://imgur.com/3uIsliV.png" height="300"></center></figure>
+<p>Task B is released by a timer every 500 ms and waits for three separate events before it's finished with its work. All events (including timer events) are enqueued and processed <em>eventually</em>; Task B can take up to 3 sec to complete it's work each time the timer releases it. Task B's deadline is 3 sec, which is longer than its period. Task B <strong><u>does</u></strong> invalidate our schedulability analysis.</p>
+<center>
+<table border="1">
+<tbody>
+<tr>
+<th>Task</th>
+<th>Execution time (ms)</th>
+<th>Period (ms)</th>
+<th>Deadline (ms)</th>
+</tr>
+<tr align="center">
+<td>B</td>
+<td>100</td>
+<td>500</td>
+<td><strong>3000</strong></td>
+</tr>
+</tbody>
+</table>
+</center>
+<figure><center><img src="https://imgur.com/yETfpZk.png" height="300"></center></figure>
+<h3 id="schedulability-of-a-queue">Schedulability of a Task with a Deadline Longer than its Period</h3>
+<p>So, what's the worst-case schedulability scenario for a task whose deadline is longer than its period? It's when a whole bunch of elements get added to the task's queue at their maximum rate <em>juuuust</em> after the scheduler evaluates its <code>if</code> expression as <code>false</code>. So what's the worst thing that could happen once the queue starts to fill up at its maximum rate?</p>
+<ol>
+<li>First, a lower priority task runs instead. Only it's not any lower priority task, it the <em>longest</em> lower priority task that we have in our system. Once it's done, the scheduler starts back at the top of the loop.</li>
+<li>Next, <em>every</em> higher priority task runs, with the scheduler starting back at the top of the loop after each one.</li>
+<li>Once no more higher priority tasks are ready to run, the task in question gets to process <em>the first</em> event in its queue.</li>
+<li>Steps 2 and 3 are <em>repeated</em> until the queue is empty.</li>
+</ol>
+<p>If ISRs are enabled, then the WCRT would also include the total ISR execution time as well. The graphic below depicts how this might play out for an example system. Assume Task C gets released three times at 0 sec.</p>
+<figure><center><img src="https://imgur.com/ImG4aZ5.png" height="320"></center></figure>
+<p>The WCRT for the <em>first</em> event is the normal WCRT for Task C: the total amount of time it would take the system to run the longest, lower-priority task (section 1) plus the execution time of all of the higher-priority tasks and ISRs (section 2) for as many times as they could be released during sections 1 and 2, <em>plus</em> the WCET for Task C (section 3). The WCRT for the qth event in the queue follows this same pattern: it's the sum of the execution time for the longest, lower-priority task (section 4); the execution time of all of the higher-priority tasks and ISRs (section 5) for as many times as they could be released during sections 4, 5, <em>and</em> the first q-1 iterations of Task C; and one last iteration of Task C (making a total of q iterations of Task C).</p>
+<p>$$WCRT_{j,\,Item\,q} = max(WCET_{i \in i&gt;j}) + \sum_{i=N}^{j-1} ( {\left \lceil \frac {WCRT_{j,\,Item\,q} - WCET_j} {P_i} \right \rceil \cdot WCET_i} ) + \sum_{i=0}^{N-1} ( {\left \lceil \frac {WCRT_{j,\,Item\,q}} {P_i} \right \rceil \cdot WCET_i} ) + q \cdot WCET_j \tag{1}$$</p>
+<p>Furthermore, we can follow the same analysis to arrive at the WCRT for a task with a longer deadline than its period in a preemptive RTOS, also.</p>
+<p>$$WCRT_{j,\,Item\,q} = \sum_{i=0}^{j-1} ( {\lceil \frac {WCRT_{j,\,Item\,q}} {P_i} \rceil \cdot WCET_i} ) + q \cdot WCET_j \tag{2}$$</p>
+<p>Of course, it doesn't exactly make sense for a task to have its events enqueued instantaneously; that would equate to an inter-arrival time, i.e. a period, of 0 sec! Instead, the events that release the task are (or <em>should be</em>) enqueued <em>no more quickly</em> than the task's period. How many items a task's queue may need to hold (i.e. the maximum number, N, that we need to consider to see if the task is schedulable) is a function of that period and how quickly the task is able to process each item out of it's queue.</p>
+<p>Imagine what would happen with the task set above if Task C's period was actually 13 usec (or anything larger than 12 usec). </p>
+<figure><center><img src="https://imgur.com/LMPa7RL.png" height="200"></center></figure>
+<p>In that case, the second event doesn't actually arrive in time for Task C to run it right after the first one and the WCRT for <em>all</em> items in the queue (which will only ever have a single element in it) is given by equation 1 with N always equal to 1 (since every event will only ever occupy that first spot in the queue). This, not coincidentally, matches the WCRT we derived in the second article. </p>
+<p>If Task C's period was actually something like 11 usec (or anything between 5.67 and 12 usec), then the <em>second</em> event <em>does</em> arrive to Task C's queue in time to get processed at 12 usec, but the <em>third</em> one <em>doesn't</em>.</p>
+<figure><center><img src="https://imgur.com/EdvfKYs.png" height="200"></center></figure>
+<p>In this case, Task C's queue will only ever have two items in it at any point in time (at most) and the WCRT for each will be given by equation 1, with N equal to either 1 or 2 (corresponding to that event's position in the queue).</p>
+<p>In general, equations 1 and 2 only hold for the first <em>q</em> items in a task's queue that each arrive <em>before</em> <em>WCRT<sub>q+1</sub> - WCET</em> (i.e. <em>before</em> the <em>next</em> time the task would run if there is an item in its queue). If the next event arrives any later, the scheduler will have already skipped over that (since it had no elements in its queue) and it will be like the WCRT analysis starts over. We'll call this maximum value of <em>q</em>, <em>Q</em>.</p>
+<p>Additionally, the WCRT of item <em>q</em> in the queue, <em>isn't actually given by equations 1 or 2</em>! More accurately, equations 1 and 2 tell us when the <em>work</em> for item <em>q</em> is completed.</p>
+<p id="eq-3">$${Completion\,time}_{j,\,Item\,q} = max(WCET_{i \in i&gt;j}) + \sum_{i=N}^{j-1} ( {\left \lceil \frac {{Completion\,time}_{j,\,Item\,q} - WCET_j} {P_i} \right \rceil \cdot WCET_i} ) + \sum_{i=0}^{N-1} ( {\left \lceil \frac {{Completion\,time}_{j,\,Item\,q}} {P_i} \right \rceil \cdot WCET_i} ) + q \cdot WCET_j \tag{3}$$ </p>
+<p id="eq-4">$${Completion\,time}_{j,\,Item\,q} = \sum_{i=0}^{j-1} ( {\lceil \frac {{Completion\,time}_{j,\,Item\,q}} {P_i} \rceil \cdot WCET_i} ) + q \cdot WCET_j \tag{4}$$</p>
+<p>The <em>response time</em> for that item is the <em>difference</em> between it's completion time and the time when it was actually added to the queue. The <em>WCRT</em> of any task is the <em>largest response time</em> of any item that could be added to the queue.</p>
+<p id="eq-5">$${Response\,time}_{j,\,Item\,q} = {Completion\,time}_{j,\,Item\,q} - q \cdot Period_j \tag{5}$$</p>
+<p id="eq-6">$$WCRT_j = \max_{q=1...Q} {Response\,time}_{j,\,Item\,q} \tag{6}$$</p>
+<p>This WCRT could arise from <em>any</em> element in the queue, not necessarily the first or last elements to be added. <strong>So you'll have to check the response times of <em>all</em> elements that could be added to the queue at any point in time (i.e. from q=1 up to the maximum, Q) to see which is the largest.</strong></p>
+<p>To determine if a task is schedulable, then, you'll iteratively determine the response time (using equation 5) of all the items in a task's queue (starting with <em>q=1</em>), with completion times given by either equation 3 or 4, verifying that each item arrives before <em>WCRT<sub>q+1</sub> - WCET</em>. If the <em>q</em>th item <em>doesn't</em> arrive before <em>WCRT<sub>q+1</sub> - WCET</em> (i.e. if when <em>WCRT<sub>q+1</sub> - WCET &lt; (q + 1)Period<sub>i</sub></em>), then you've found your maximum queue length, <em>Q</em> (which will be <em>q</em> items). Alternatively, your specific system may dictate a smaller maximum value than this (e.g. "<em>technically</em> our queue could have as many as 100 messages before the task is able to clear them out, but it doesn't make sense for there to be more than 10 messages enqueued at any point in time, so <em>that</em> will be our maximum value). If the <em>largest</em> response time out of <em>all</em> of the items in the queue is less than that task's deadline, your task is schedulable!</p>
+<p>Since that could be a rather daunting process, I'll offer you one other solution for <strong>preemptive schedulers</strong> based on results from <a href="https://www.rocq.inria.fr/novaltis/research_reports/RR-2966.pdf">this paper</a>, which puts an upper-bound on the WCRT for any item in a task's queue. </p>
+<p id="eq-7">$$WCRT_j \leq \frac { \sum_{i \leq j} WCET_i } { 1 - \sum_{i \lt j} {\frac {WCET_j} {Period_j} } } \tag{7}$$</p>
+<p>If the WCRT for a task using this equation is less than the task's deadline, then that task is guaranteed to be schedulable. If it isn't, you'll just need to calculate the WCRT for each item in the queue using equation 6, above.</p>
+<h2 id="counting-semaphores">Counting Semaphores</h2>
+<p>Counting semaphores are used to count the number of times an event occurs. For example, a counting semaphore could be used to count the number of times a button is pressed, with a task running until the count value returns to zero. This would queue up the task however many times the button was pressed, not unlike the way the task might be queued up for however many messages it received in a message queue. Adding support for this just means adding an integer in our task to keep track of the counter value.</p>
+<pre>// TaskA.c
+//
+static int buttonCount = 0;
+void giveSemaphore1(void)
+{
+    atomic_fetch_add(&amp;buttonCount, 1);
+    atomic_fetch_or(&amp;g_tasks, A_MASK);
+}
+</pre>
+<p>The task can then check if <code>buttonCount</code> is non-zero to see if it needs to handle any of those events. (<code>atomic_fetch_sub</code> can be used in the task code to decrement the counting semaphore.)</p>
+<p>A counting semaphore, not unlike a queue, though, works on the principle that a task can be released multiple times before it runs, and its okay as long as the task gets to run <em>eventually</em>. In effect, we're saying that the deadline of such a task is <em>longer</em> than the shortest inter-arrival time of the triggering events, just like with the queue. The schedulability of such a task, then, would follow equation 6, above.</p>
+<h2 id="observer">The Observer Pattern</h2>
+<p>At this point, senders have to know at compile-time which functions they're calling when new data is produced. It would be nice if, instead, this could be set (or even changed) at run-time. The cleanest way to do this is for each sender (or subject) to keep an array of notification functions that each get called when new data is produced. The sender provides <code>register</code> and <code>deregister</code> functions that allow tasks to "sign up" for or "opt out" of notifications.</p>
+<pre>// Subject.h
+//
+const int MAX_OBSERVERS = 10;
+typedef void (*notifyFcn_t)(int val);
+// Subject.c
+//
+static notifyFcn_t notifyFcns[MAX_OBSERVERS] = {0};
+bool register( notifyFcn_t notify )
+{
+    bool success = false;
+    for( int idx = 0; idx &lt; MAX_OBSERVERS; idx++ )
+    {
+        if( !notify[idx] )
+        {
+            notify[idx] = notify;
+            success = true;
+            break;
+        }
+    }
+    return success;
+}
+void deregister( notifyFcn_t notify )
+{
+    for( int idx = 0; idx &lt; MAX_OBSERVERS; idx++ )
+    {
+        if( notify[idx] == notify )
+        {
+            notify[idx] = NULL;
+            break;
+        }
+    }
+}
+void SubjectTask(void)
+{
+    ...
+    int newVal = 4;
+    for( int idx = 0; idx &lt; MAX_OBSERVERS; idx++ )
+    {
+        if( notify[idx] ) notify[idx](newVal);
+    }
+    ...
+}
+</pre>
+<p>Tasks that want to receive notifications from the subject will call the <code>register</code> function with a pointer to the function that they want called when new data is ready. That function should copy the data into a local variable (i.e. a mailbox) and then set the thread flags and <code>g_tasks</code> to let the task process the data. The notification functions could also screen for specific values, only releasing the receiving task if the new value matches some criteria.</p>
+<pre>// TaskA.c
+//
+enum { MBX_NUM };
+const int MBX_MASK = (1&lt;&lt;MBX_NUM);
+static volatile int myVal;
+void receiveVal(int val)
+{
+    myVal = val;  // Assuming storing to myVal is atomic; otherwise, 
+                  // make sure to turn interrupts off before and back
+                  // on after or use atomic_store(&amp;myVal, val);
+    atomic_fetch_or(&amp;thread_flags, MBX_MASK);
+    atomic_fetch_or(&amp;g_tasks, A_MASK);
+}
+void TaskA(void)
+{
+    ...
+    register(receiveVal);    // TODO: Check return value for success/failure
+    if( thread_flags &amp; MBX_MASK )
+    {
+        // If MBX_MASK is set, it's because receiveVal was called
+        // by SubjectTask, and myVal has a new value.
+    }
+    ...
+}
+</pre>
+<p>In effect, this is a simplified version of the <a href="https://refactoring.guru/design-patterns/observer">Observer Pattern</a>! The nice part about this is that tasks can now register to receive specific pieces of data when they need them during their execution, instead of needing to wire <em>every</em> task at compile-time to receive <em>every</em> possible piece of data it could <em>ever</em> need throughout the course of its execution. With this, we can build <em>very</em> capable systems!</p>
+<h2 id="marquee">Marquee</h2>
+<p>"Marquee" is a name I made up for a system in which an <strong>event flag</strong> indicates to the rest of the system that a new <strong>data value</strong> of some kind is available. Tasks that are released when the event occurs can check a global variable or use a "getter" function to obtain the new data value. The task or ISR managing the event also keeps a running counter for the event (to give each event it's own ID number, so-to-speak) so that tasks can check if there's been a new event since last they read the data value.</p>
+<pre>// main.h
+//
+enum { UART_FLAG_NUM, NUM_EVENT_FLAGS };
+const int UART_FLAG_MASK = (1&lt;&lt;UART_FLAG_NUM);
+// UART.c
+//
+typedef struct
+{
+    char uartRxChar;
+    int  eventCount;
+} uartRxStruct_t;
+static uartRxStruct_t uartRxStruct = {0};
+void UART_ISR(void)
+{
+    uartRxStruct_t temp = {0};
+    temp.uartRxChar = /* Read UART data register */;
+    temp.eventCount = uartRxStruct.eventCount + 1;
+    atomic_store(&amp;uartRxStruct, temp);
+    atomic_fetch_or(&amp;g_event_flags, UART_FLAG_MASK);
+    atomic_fetch_or(&amp;g_tasks, tasks_registered_for_events[UART_FLAG_POS];
+    // Clear UART interrupt flag
+}
+uartRxStruct_t getUartResult(void)
+{
+    return atomic_load(&amp;uartRxStruct);
+}
+// TaskA.c
+static int lastUartCount = -1;
+void TaskA(void)
+{
+    ...
+    registerForEvent(A_NUM, UART_FLAG_NUM);
+    if( atomic_load(&amp;g_event_flags) &amp; UART_FLAG_MASK )
+    {
+        uartRxStruct_t uartVal = getUartResult();
+        if( lastUartCount != uartVal.eventCount )
+        {
+            // Do stuff with uartVal.uartRxChar
+            lastUartCount = uartVal.eventCount;
+        }
+    }
+    ...
+}
+</pre>
+<p>As with mailboxes, the "marquee" isn't restricted to an int or struct; it can also be a TLV message or a pointer (to a larger struct or another generic data type).</p>
+<h2 id="dispatch-queue">Alternative Design: The Dispatch Queue</h2>
+<p>The "Superduperloop", like many other schedulers, works by looping over a list of tasks in some way, running the first task it finds that's ready to run. Tasks are released by events when their "ready" bit is set (or something similar).</p>
+<figure><center><img src="https://imgur.com/uTNdaR2.png" height="400"></center></figure>
+<p>In a <strong>dispatch queue</strong>, on the other hand, tasks are released by events when <em>the tasks themselves</em> (as function pointers, most likely) are added to a system-wide queue. The scheduler does nothing more complicated than dequeue the task at the head of the list and run it; if there are no tasks in the queue, the scheduler runs an idle loop or goes to sleep.</p>
+<figure><center><img src="https://imgur.com/JdxeT3j.png" height="400"></center></figure>
+<p>We can still use all of the different forms of IPC that we've discussed over the last two articles by simply replacing <code>atomic_fetch_or(&amp;g_tasks, A_MASK)</code> with something like <code>enqueue(dispatchQueue, TaskA)</code>. The main scheduler loop, instead of being composed of an <code>if...else if</code> chain, would look something like this:</p>
+<pre>while(1)
+{
+    if( queueIsNotEmpty(dispatchQueue) )
+    {
+        // Current task = dequeue(dispatchQueue)
+        // Run task
+    }
+    else /* Go to sleep */;
+}
+</pre>
+<p>If a normal (i.e. non-prioritized) queue is used to hold each of the tasks, then this amounts to a <a href="https://www.geeksforgeeks.org/first-come-first-serve-cpu-scheduling-non-preemptive/">first come, first served</a> (FCFS) scheduling algorithm. By enforcing some kind of priority scheme on the queue, though, we can effectively implement different scheduling algorithms (assuming that each task's WCET, period, deadline, and/or it's priority level are stored in the processor's memory). These can include a normal fixed-priority algorithm (like we've been using), <a href="https://www.geeksforgeeks.org/program-for-shortest-job-first-or-sjf-cpu-scheduling-set-1-non-preemptive/">shortest job first</a> (SJF), <a href="https://www.geeksforgeeks.org/earliest-deadline-first-edf-cpu-scheduling-algorithm/">earliest deadline first</a> (EDF), or <a href="https://www.geeksforgeeks.org/least-slack-time-lst-scheduling-algorithm-in-real-time-systems/">least laxity</a> (LL). Using a dynamic priority assignment algorithm is nice, because it alleviates any need to determine an optimal priority assignment at compile-time (like we had to do <a href="https://www.embeddedrelated.com/showarticle/1652.php#assigning-task-priorities">previously</a>).</p>
+<p>We'll take a closer look at the EDF priority assignment algorithm, specifically, in the next section, since it's been proven to be <strong>optimal</strong> for non-preemptive schedulers. ("Optimal" here doesn't mean that a dispatch queue using EDF can schedule <em>any</em> task set, just that if a task set <em>could</em> be scheduled by a non-preemptive scheduler, it can <em>also</em> be scheduled using EDF.) In fact, <a href="https://link.springer.com/article/10.1007/s11241-017-9294-3">this paper</a> showed that if a task set is schedulable using EDF, you'd have to run your processor either 1.76x or 2x <em>faster</em> if you wanted to schedule that exact same task set using a fixed-priority, non-preemptive scheduler like the "Superduperloop"! Despite this, the other algorithms may still warrant consideration if they have better performance in other important categories, such as run-time overhead, how long tasks need to wait (on average or at maximum) before they're allowed to run, etc.</p>
+<p>The <em>downside</em> with dynamic priority assignment schedulers is that its unclear which task will suffer if the system is overloaded. With a fixed-priority scheduler, we can be certain that if our tasks actually take longer or arrive more quickly than we'd expected, it's the lower priority tasks which will not get to run. Using a dynamic priority assignment scheduler, which task gets starved in an overload situation is dependent on the specific arrival pattern of the tasks that occurs at run-time.</p>
+<h3 id="schedulability-of-a-dispatch-queue">Schedulability of a Dispatch Queue using EDF Priority Assignments</h3>
+<p>To determine if a set of tasks is schedulable using a dispatch queue with EDF, we'll use a different technique than what we've been using. What we've <em>been</em> using is called a "worst-case response time analysis"; we've mathematically determined the longest time each task could reasonably take to finish its execution (it's WCRT) and said, "As long as <em>each</em> task's WCRT is less than or equal to it's deadline, the system must be schedulable." Although it's possible to do a worst-case response time analysis for a dispatch queue with EDF, that analysis gets <em>mega-weird</em>, since the "priorities" of each task changes with their release times. Consider two tasks (A and B) with deadlines of 5 and 6 usec. Let's say our system is running a third task when Task A and Task B both arrive (at 0 and 1 usec).</p>
+<figure><center><img src="https://imgur.com/KEtBmc6.png" height="160"></center></figure>
+<p>Because Task A has the earlier deadline, when the system finishes the current task, it will be the one to execute first. However, what if the arrival times of Task A and Task B were shifted slightly?</p>
+<figure><center><img src="https://imgur.com/aVUC9w8.png" height="160"></center></figure>
+<p>Now <em>Task B</em> has the earlier deadline, so <em>it</em> will be the one to execute first when the system finishes its current task. This adds a level of complexity to the worst-case response time analysis that makes it quite difficult to get right (at least, for me!).</p>
+<p>So instead of a worst-case response time analysis, we're going to use something called a "feasibility" test: if our set of tasks passes the test, then it's schedulable. The feasibility test won't give us any more information than that (so we won't really have any idea about when tasks can be expected to complete before their deadlines, like we might with a worst-case response time analysis), but that is still sufficient for our purposes. (When we used a task set's utilization to determine if it could be scheduled with a preemptive RTOS in the <a href="https://www.embeddedrelated.com/showarticle/1636.php#the-utilization-test-and-harmonic-rate-monotonic-scheduling">first article</a>, that was an example of a feasibility test, albeit only a sufficient one, not a necessary one.) Further, <strong>we're going to restrict our analysis to task sets in which every task's deadline is equal to its period (or sets in which we make it so by simply taking the lesser of the two values, if they are unequal)</strong>. Note that this means that we're <em>not</em> going to analyze any task sets scheduled with EDF that use queues or counting semaphores to have a deadline longer than their period. It's completely possible to analyze those situations, they're just even <em>harder</em> to analyze (see the paper below for more information).</p>
+<p>Our feasibility test comes from <a href="https://www.rocq.inria.fr/novaltis/research_reports/RR-2966.pdf">this paper</a>, in which the author's present the following theorem (<strong>**WARNING**: GROSS MATH AHEAD</strong>):</p>
+<figure><center><img src="https://imgur.com/bKP0Az0.png" height="200"></center></figure>
+<p>The first condition above says that the total utilization of the processor must be less than or equal to 1 (it's not possible to ask the processor to do 10 usec of work in only 8 usec!). The second condition is the more interesting one. It assumes, firstly, that <em>all tasks</em> become ready to run at some time <em>x</em>, which is the worst possible thing to happen in terms of utilization; the processor would have the <em>most</em> work to do at any one point in time if that were to happen. Further, it says that if the processor is able to complete all of that work by each tasks' deadlines, then we can say that the system is schedulable (no future arrival pattern could be any worse than this).</p>
+<p>To evaluate if that second condition is true for a set of tasks, we'll first construct a set of times (<em>S</em>), starting after <em>x</em>, that correspond to <em>each</em> deadline for <em>each </em>task up to, and including, the largest deadline. Consider the set of tasks below.</p>
+<center>
+<table border="1">
+<tbody>
+<tr>
+<th>Task</th>
+<th>Execution time (us)</th>
+<th>Period (us)</th>
+<th>Deadline (us)</th>
+</tr>
+<tr align="center">
+<td>A</td>
+<td>1</td>
+<td>3</td>
+<td>3</td>
+</tr>
+<tr align="center">
+<td>B</td>
+<td>1</td>
+<td>4</td>
+<td>4</td>
+</tr>
+<tr align="center">
+<td>C</td>
+<td>1</td>
+<td>5</td>
+<td>5</td>
+</tr>
+<tr align="center">
+<td>D</td>
+<td>2.1</td>
+<td>10</td>
+<td>10</td>
+</tr>
+</tbody>
+</table>
+</center>
+<p>If every task were released at <em>x</em>, Task A would have deadlines at x+3, x+6, and x+9; Task B would have deadlines at x+4 and x+8; Task C would have deadlines at x+5 and x+10; and Task D would have a deadline at x+10. Thus, the set of times we need to consider for our feasibility test are x+[3,4,5,6,8,9,10].</p>
+<figure><center><img src="https://imgur.com/vqEESU0.png" height="200"></center></figure>
+<p>Then, for each of those deadlines, we'll ask the question "Is there enough time for the processor to finish all of its work before that deadline?" The total work that the processor needs to complete (<em>h(t)</em>) is the sum of the execution times of all tasks that have a deadline at or before the time in question (<em>t</em>). Note that this would also include the recursive total of all ISRs that could run between <em>x</em> and <em>t</em>. <em>However</em>, it's possible that the processor <em>can't</em> start working on those tasks at time <em>x</em>, because we're using a non-preemptive scheduler and, in the worst case scenario, it's running another task at <em>x</em>, <em>right</em> before every other task gets released. Only (you guessed it!), it's not <em>any</em> task that's being run, it's the <em>longest</em> possible task that could run whose deadline is <em>after</em> the deadline we're currently looking at (at time <em>t</em>); this is the term <em>max<sub>D<sub>i</sub> &gt; t</sub> {C<sub>i</sub> - 1}</em>. (The term <em>C<sub>i</sub> - 1</em> comes from the fact that this paper is doing a discrete time analysis, so tasks are only allowed to be released on integer multiples of the time base of the system. For our purposes, we'll replace <em>C<sub>i</sub> - 1</em> with just <em>C<sub>i</sub></em>, since we want to account for the possibility that this task could be released <em>juuuust</em> before the other tasks get released [i.e. we want to do a continuous time analysis].) So, in addition to the processor needing to finish all of the work from any task that was released at <em>x</em> and needs to complete by <em>t</em>, it can do that only <em>after</em> it finishes the longest task whose deadline is after <em>t</em>. Provided <em>that's</em> true for every task in the system, the whole thing must be schedulable.</p>
+<p>For example, we'd start by evaluating the first deadline, at x+3. At that deadline, only Task A needs to complete and Task C has the longest execution time of any task with a deadline after x+3, so the right-hand side of the inequality is <em>C<sub>A</sub> + C<sub>C</sub></em> or 3 usec. This just <em>barely</em> fits in the 3 usec window, so we're good!</p>
+<figure><center><img src="https://imgur.com/0Jku2vn.png" height="200"></center></figure>
+<p>Next, we'd evaluate the deadline at x+4. At that deadline, both Task A and Task B need to complete and Task C is still the longest task of any task that has a deadline after x+4, to the right-hand side of the inequality is <em>C<sub>A</sub> + C<sub>B</sub> + C<sub>C</sub></em> or 4 usec. We still barely fit, so we're still good!</p>
+<figure><center><img src="https://imgur.com/s0T6ZrS.png" height="200"></center></figure>
+<p>The table below shows the results of finishing that analysis for all deadlines up to and including x+10.</p>
+<table border="1">
+<tbody>
+<tr>
+<th>Deadline</th>
+<th>Which tasks have deadlines at or before this time?</th>
+<th>Total execution time from all those tasks</th>
+<th>Which task (deadline greater than current time) has the longest execution time?</th>
+<th>Execution time from that task</th>
+<th>Is <em>t &ge; h(t) + max C<sub>i</sub></em>?</th>
+</tr>
+<tr align="center">
+<td>x+3</td>
+<td>A</td>
+<td>1</td>
+<td>C</td>
+<td>1</td>
+<td bgcolor="#50c878">YES</td>
+</tr>
+<tr align="center">
+<td>x+4</td>
+<td>A, B</td>
+<td>2</td>
+<td>C</td>
+<td>1</td>
+<td bgcolor="#50c878">YES</td>
+</tr>
+<tr align="center">
+<td>x+5</td>
+<td>A, B, C</td>
+<td>3</td>
+<td>D</td>
+<td>2.1</td>
+<td bgcolor="#c24641">NO</td>
+</tr>
+<tr align="center">
+<td>x+6</td>
+<td>A (twice), B, C</td>
+<td>4</td>
+<td>D</td>
+<td>2.1</td>
+<td bgcolor="#c24641">NO</td>
+</tr>
+<tr align="center">
+<td>x+8</td>
+<td>A (twice), B (twice), C</td>
+<td>5</td>
+<td>D</td>
+<td>2.1</td>
+<td bgcolor="#50c878">YES</td>
+</tr>
+<tr align="center">
+<td>x+9</td>
+<td>A (thrice), B (twice), C</td>
+<td>6</td>
+<td>D</td>
+<td>2.1</td>
+<td bgcolor="#50c878">YES</td>
+</tr>
+<tr align="center">
+<td>x+10</td>
+<td>A (thrice), B (twice), C (twice), D</td>
+<td>9</td>
+<td>None (no task has a longer deadline)</td>
+<td>0</td>
+<td bgcolor="#50c878">YES</td>
+</tr>
+</tbody>
+</table>
+<p>Rats! Our system misses a deadline at 5 usec, owing to the fact that Task D is hogging the processor and doesn't leave it enough time to finish all of it's other work. Let's imagine we found a way to reduce the execution time of Task D from 2.1 to 2 usec. The new feasability test would then look like this:</p>
+<table border="1">
+<tbody>
+<tr>
+<th>Deadline</th>
+<th>Which tasks have deadlines at or before this time?</th>
+<th>Total execution time from all those tasks</th>
+<th>Which task (deadline greater than current time) has the longest execution time?</th>
+<th>Execution time from that task</th>
+<th>Is <em>t &ge; h(t) + max C<sub>i</sub></em>?</th>
+</tr>
+<tr align="center">
+<td>x+3</td>
+<td>A</td>
+<td>1</td>
+<td>C</td>
+<td>1</td>
+<td bgcolor="#50c878">YES</td>
+</tr>
+<tr align="center">
+<td>x+4</td>
+<td>A, B</td>
+<td>2</td>
+<td>C</td>
+<td>1</td>
+<td bgcolor="#50c878">YES</td>
+</tr>
+<tr align="center">
+<td>x+5</td>
+<td>A, B, C</td>
+<td>3</td>
+<td>D</td>
+<td>2</td>
+<td bgcolor="#50c878">YES</td>
+</tr>
+<tr align="center">
+<td>x+6</td>
+<td>A (twice), B, C</td>
+<td>4</td>
+<td>D</td>
+<td>2</td>
+<td bgcolor="#50c878">YES</td>
+</tr>
+<tr align="center">
+<td>x+8</td>
+<td>A (twice), B (twice), C</td>
+<td>5</td>
+<td>D</td>
+<td>2</td>
+<td bgcolor="#50c878">YES</td>
+</tr>
+<tr align="center">
+<td>x+9</td>
+<td>A (thrice), B (twice), C</td>
+<td>6</td>
+<td>D</td>
+<td>2</td>
+<td bgcolor="#50c878">YES</td>
+</tr>
+<tr align="center">
+<td>x+10</td>
+<td>A (thrice), B (twice), C (twice), D</td>
+<td>9</td>
+<td>None (no task has a longer deadline)</td>
+<td>0</td>
+<td bgcolor="#50c878">YES</td>
+</tr>
+</tbody>
+</table>
+<p>Success! Our task set is schedulable using a dispatch queue with EDF.</p>
+<p>(Challenge question! Is this task set also schedulable using a preemptive RTOS? What about the "Superduperloop" or the time-triggered scheduler? What are the optimal task priority assignments?)</p>
+<h2 id="superduperloop-v3">The "Superduperloop", v3</h2>
+<p>The final "Superduperloop" (<em>version 3!</em>) comes complete with support for all kinds of OS primitives: thread flags/binary semaphores, event flags, mailboxes/queues, Observer, counting semaphores, and marquees. We didn't actually make any changes to the main scheduler loop in this article, so that still looks like it did in the <a href="https://www.embeddedrelated.com/showarticle/1653.php#all-together">last article</a>.</p>
+<p>The tasks, though, were outfitted with additional local flags and variables and with public "setter" or "getter" functions to allow other tasks to set or retrieve those flags/variables. Additionally, "sender" tasks have <code>register</code> and <code>deregister</code> functions to implement a simple Observer pattern. A sample sender task and a receiver task (unrelated to each other) that demonstrate a few of the important OS primitives are shown below. The "Receiver" task waits for a semaphore (<code>FLAG1</code>), a global event (<code>EVENT_FLAG2</code>), and an integer value from a Subject (<code>myVal</code>). I've chosen to use the <a href="https://dunkels.com/adam/pt/index.html">Protothreads</a> library to help keep my FSM syntax succinct (which would also change the signature for the function prototypes in the associated <code>main.c</code> file).</p>
+<pre>// Receiver.c
+//
+//-------------------Thread flags--------------------------//
+enum { FLAG1_NUM, MBX_NUM, NUM_FLAGS_TASK_A };
+const int FLAG1_MASK = (1&lt;&lt;FLAG1_NUM);
+const int MBX_NUM = (1&lt;&lt;MBX_NUM);
+static int thread_flags = 0;
+//-------------Local variables for mailbox-----------------//
+static int myVal = 0;
+//---------------"Setter" functions------------------------//
+void setFlag1(void)
+{
+    atomic_fetch_or(&amp;thread_flags, FLAG1_MASK);
+    atomic_fetch_or(&amp;g_tasks, A_MASK);
+}
+void addMsg(int val)
+{
+    myVal = val;
+    atomic_fetch_or(&amp;thread_flags, MBX_NUM);
+    atomic_fetch_or(&amp;g_tasks, A_MASK);
+}
+//------------------------Task----------------------------//
+int TaskA(struct pt *pt)
+{
+    float temp;
+    PT_BEGIN(pt);
+    PT_WAIT_UNTIL( pt, thread_flags &amp; FLAG1_MASK );
+    // Do stuff when flag1 has been set
+    thread_flags = 0;
+    registerForEvent( A_NUM, EVENT_FLAG2_NUM );
+    PT_WAIT_UNTIL( pt, event_flags &amp; EVENT_FLAG1_MASK );
+    deregisterFromEvent( A_NUM, EVENT_FLAG2_NUM );
+    // Do stuff after event flag 2 has been set
+    register( addMsg );
+    PT_WAIT_UNTIL( pt, thread_flags &amp; MBX_MASK );
+    deregister( addMsg );
+    // Do stuff with myVal
+    PT_RESTART(pt);    // Resume on next task release at "PT_BEGIN"
+    PT_END(pt);
+}
+</pre>
+<pre>// Sender.h
+//
+const int MAX_OBSERVERS = 10;
+typedef void (*notifyFcn_t)(int val);
+// Sender.c
+//
+static notifyFcn_t notifyFcns[MAX_OBSERVERS] = {0};
+bool register( notifyFcn_t notify )
+{
+    bool success = false;
+    for( int idx = 0; idx &lt; MAX_OBSERVERS; idx++ )
+    {
+        if( !notify[idx] )
+        {
+            notify[idx] = notify;
+            success = true;
+            break;
+        }
+    }
+    return success;
+}
+void deregister( notifyFcn_t notify )
+{
+    for( int idx = 0; idx &lt; MAX_OBSERVERS; idx++ )
+    {
+        if( notify[idx] == notify )
+        {
+            notify[idx] = NULL;
+            break;
+        }
+    }
+}
+void adcISR(void)
+{
+    int newVal = /* Read ADC result register */;
+    for( int idx = 0; idx &lt; MAX_OBSERVERS; idx++ )
+    {
+        if( notify[idx] ) notify[idx](newVal);
+    }
+    // Clear ADC ISR flag
+}
+</pre>
+<p>Not a bad little OS for only a few dozen lines of code, if I do say so myself!</p>
+<h2 id="summary-article">Summary of This Article</h2>
+<p>Without too much additional code, we were able to add mailboxes/queues, counting semaphores, the Observer pattern, and marquees to the "Superduperloop". Tasks are able to send both binary and arbitrary data directly to tasks or broadcast them to all tasks, as diagrammed below.</p>
+<figure><center><img src="https://imgur.com/Uu9dCSz.png" height="600"></center></figure>
+<p>I've updated the tables below that compare the different superloops to reflect these changes.</p>
+<p><strong>Advantages and Disadvantages</strong></p>
+<table border="1">
+<tbody>
+<tr>
+<td></td>
+<td><strong>Advantages</strong></td>
+<td><strong>Disadvantages</strong></td>
+</tr>
+<tr>
+<td><strong>ULWOS2</strong></td>
+<td>
+<ul>
+<li>Simple</li>
+</ul>
+</td>
+<td>
+<ul>
+<li>Employs something akin to a dynamic task priority scheme for tasks assigned the same priority level, complicating schedulability analysis</li>
+<li>No support for sleeping if idle</li>
+<li>Uses <code>goto</code>s to implement coroutine behavior (instead of <code>switch...case</code>), which may be undesirable for some</li>
+</ul>
+</td>
+</tr>
+<tr>
+<td><strong>cocoOS</strong></td>
+<td>
+<ul>
+<li>The most features of any OS here</li>
+</ul>
+</td>
+<td>
+<ul>
+<li>Supports sleeping, but with possible error</li>
+<li>All messages inherit from a base class (use of inheritance [especially in C!] may be difficult for some)</li>
+</ul>
+</td>
+</tr>
+<tr>
+<td><strong>SST0/QV</strong></td>
+<td>
+<ul>
+<li>Highly reputable author (Miro Samek)</li>
+<li>Likely to be the most stable/bug-free</li>
+</ul>
+</td>
+<td>
+<ul>
+<li>Uses message-passing paradigm only (may feel odd to some)</li>
+<li>All events inherit from a base class (use of inheritance [especially in C!] may be difficult for some)</li>
+<li>SST0 is limited (as written) to only 8 tasks</li>
+<li>Not (easily) possible for tasks to yield in the middle of processing an event</li>
+<li>SST0 does not currently recycle the memory used to create events (possible memory leak)</li>
+</ul>
+</td>
+</tr>
+<tr>
+<td><strong>"Superduperloop"</strong></td>
+<td>
+<ul>
+<li>Simple</li>
+<li>Supports all IPC</li>
+<li>Tasks can wait on any valid C/C++ expression</li>
+</ul>
+</td>
+<td>
+<ul>
+<li>Scheduler is so simple b/c much of the IPC code is pushed to the tasks; lots of "boilerplate" code may need to be written</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Features</strong></p>
+<table border="1">
+<tbody>
+<tr align="center">
+<td></td>
+<td><strong>ULWOS2</strong></td>
+<td><strong>cocoOS</strong></td>
+<td><strong>SST0/QV</strong></td>
+<td><strong>"Superduperloop"</strong></td>
+</tr>
+<tr>
+<td>Thread flags</td>
+<td bgcolor="#c24641">N</td>
+<td bgcolor="#c24641">N</td>
+<td bgcolor="#c24641">N</td>
+<td bgcolor="#50c878">Y</td>
+</tr>
+<tr>
+<td>Binary Semaphores</td>
+<td bgcolor="#c24641">N</td>
+<td bgcolor="#DFBC40">Y (but not thread-safe)</td>
+<td bgcolor="#c24641">N</td>
+<td bgcolor="#50c878">Y</td>
+</tr>
+<tr>
+<td>Event flags</td>
+<td bgcolor="#50c878">Y</td>
+<td bgcolor="#50c878">Y</td>
+<td bgcolor="#c24641">N (but does include timer notifications)</td>
+<td bgcolor="#50c878">Y</td>
+</tr>
+<tr>
+<td>Mailbox/Message queues</td>
+<td bgcolor="#DFBC40">Y (but not thread-safe)</td>
+<td bgcolor="#DFBC40">Y (but not thread-safe)</td>
+<td bgcolor="#50c878">Y</td>
+<td bgcolor="#DFBC40">Y (with queue library)</td>
+</tr>
+<tr>
+<td>Counting semaphores</td>
+<td bgcolor="#c24641">N</td>
+<td bgcolor="#DFBC40">Y (but not thread-safe)</td>
+<td bgcolor="#c24641">N</td>
+<td bgcolor="#50c878">Y</td>
+</tr>
+<tr>
+<td>Observer</td>
+<td bgcolor="#DFBC40">Y</td>
+<td bgcolor="#DFBC40">Y</td>
+<td bgcolor="#DFBC40">Y</td>
+<td bgcolor="#50c878">Y</td>
+</tr>
+<tr>
+<td>Marquee</td>
+<td bgcolor="#DFBC40">Y</td>
+<td bgcolor="#DFBC40">Y</td>
+<td bgcolor="#c24641">N</td>
+<td bgcolor="#50c878">Y</td>
+</tr>
+<tr>
+<td>Complexity</td>
+<td bgcolor="#DFBC40">Medium (~500 LOC)</td>
+<td bgcolor="#c24641">High (~2000 LOC)</td>
+<td bgcolor="#DFBC40">
+<ul>
+<li>SST0: Medium (~400 LOC)</li>
+<li>QV: High (~1900 LOC)</li>
+</ul>
+</td>
+<td bgcolor="#50c878">Low (~50-100 LOC)</td>
+</tr>
+</tbody>
+</table>
+<p>Using queues or counting semaphores to enable your tasks to have a deadline which is <em>longer</em> than their period complicates the schedulability analysis, though, whether you're using a non-preemptive scheduler or a preemptive one. To determine if your task is schedulable, you'll use equation <a href="#eq-6">6</a> to calculate the task's WCRT, which is the maximum response time of any of the first <em>q</em> items in the task's queue, stopping only when <em>WCRT<sub>q+1</sub> - WCET &lt; (q + 1)Period<sub>i</sub></em>. The response time is given by equation <a href="#eq-5">5</a> and the completion times are given by either equation <a href="#eq-3">3</a> or <a href="#eq-4">4</a> (depending on whether you're using a non-preemptive or a preemptive scheduler). If the WCRT is less than the task's deadline, then the task is schedulable.</p>
+<p>Hopefully now you're <em>even more</em> ready to write your next embedded application with one of those schedulers, absent (almost) any concerns about race conditions!</p>
+<p>Additionally, I demonstrated another scheduler based on the idea of a <strong>dispatch queue</strong>. A dispatch queue is simple to implement and can adopt a number of different task prioritization algorithms based on whether and how you prioritize tasks that get added to the dispatch queue. Using the EDF priority assignment algorithm, you can schedule task sets that even a fixed-priority scheduler like the "Superduperloop" wouldn't be able to schedule.</p>
+<h2 id="summary-series">Summary of "You Don't Need an RTOS"</h2>
+<p>This being the last article in my series, let's review the main points I had hoped to share with you about real-time scheduling (in general) and also non-preemptive schedulers (in specific).</p>
+<ul>
+<li>If you want to make sure that your system actually works (i.e. that "bad things" aren't happening as a result of tasks missing their deadlines), you need to use a <em>proven</em> method of scheduling those tasks with a <em>proven</em> way to ensure schedulability.</li>
+<li>Every means of ensuring schedulability will require that you know your tasks' worst-case execution times (WCET), their periods, and their deadlines, which you can either <a href="https://www.embeddedrelated.com/showarticle/1636.php#measuring-wcet">measure</a> or determine from system requirements.</li>
+<li>Using a preemptive RTOS is <em>one</em> way to schedule your tasks, but reasoning about concurrent code and making sure it works correctly is <a href="https://www.embeddedrelated.com/showarticle/1636.php#the-problem-with-concurrency"><em>hard</em></a>. It requires considering the possible negative effects (i.e. race conditions) of <em>any</em> higher-priority task running between <em>any</em> two non-atomic operations in a lower-priority task (and possibly also needing to take into account the reordering of instructions by your compiler or processor!).</li>
+<li>Race conditions can be <em>eliminated</em> if a system is non-preemptive. Race conditions can be <em>minimized</em> in a system that disallows task preemption, but <em>does</em> allow preemption from ISRs.</li>
+<li>Three types of non-preemptive schedulers that you can use to schedule your tasks are:
+<ul>
+<li>Fixed-priority schedulers, i.e.
+<ul>
+<li><a href="https://www.embeddedrelated.com/showarticle/1653.php#all-together">"Superduperloop"</a></li>
+<li><a href="https://embeddedsystems.io/ulwos2-a-simple-cooperative-os-part-1/">ULWOS2</a></li>
+<li><a href="https://github.com/cocoOS/cocoOS">cocoOS</a></li>
+<li><a href="https://github.com/QuantumLeaps/Super-Simple-Tasker/tree/main/sst0_c">SST0</a> / <a href="https://www.state-machine.com/qpc/arm-cm_qv.html">QV</a></li>
+</ul>
+</li>
+<li><a href="https://www.embeddedrelated.com/showarticle/1652.php#time-triggered-scheduler">Time-triggered scheduler</a></li>
+<li><a href="#dispatch-queue">Dispatch queue</a></li>
+</ul>
+</li>
+<li>If you're using a fixed-priority scheduler, you'll need to assign a priority to each task. You can assign task priorities using DMS (deadline monotonic scheduling), provided certain conditions are met. The conditions that must be met to use DMS are based on whether you're using a <a href="https://www.embeddedrelated.com/showarticle/1652.php#case-1">non-preemptive</a> or a <a href="https://www.embeddedrelated.com/showarticle/1636.php#assigning-task-priorities">preemptive</a> scheduler. Additionally, either an <a href="https://www.embeddedrelated.com/showarticle/1652.php#case-2a">exhaustive search</a> or <a href="https://www.embeddedrelated.com/showarticle/1652.php#case-2b">Audsley's algorithm</a> will work for either scheduler.</li>
+<li>As long as our <a href="https://www.embeddedrelated.com/showarticle/1636.php#critical-assumptions">assumptions</a> hold, then a set of tasks is schedulable if the following conditions are true:
+<ul>
+<li><strong>Non-preemptive, fixed priority</strong> (e.g. "Superduperloop", ULWOS2, cocoOS, SST0/QV): Every tasks' WCRT is less than or equal to its deadline. WCRT is calculated using equation <a href="https://www.embeddedrelated.com/showarticle/1652/#eq-5">5</a> from part 2.
+<ul>
+<li>For ULWOS2, the WCRT of any task that shares a priority level with other tasks should be calculated as if that task had the lowest priority of any in that group.</li>
+<li>For the <a href="https://www.embeddedrelated.com/showarticle/1652.php#time-triggered-scheduler">"time-triggered"</a> scheduler, each task simply needs to meet its deadline over the entire hyperperiod.</li>
+</ul>
+</li>
+<li><strong>Non-preemptive, EDF</strong> (i.e. dispatch queue): Total processor utilization is less than or equal to 1 and the processor can complete all work by each tasks' deadlines, even if every task is released at the same time AND the processor just began executing the longest task with a longer deadline (described <a href="#schedulability-of-a-dispatch-queue">here</a>).</li>
+<li><strong>Preemptive, fixed priority</strong> (e.g. RTOS):
+<ul>
+<li>Utilization is less than the value given by equation <a href="https://www.embeddedrelated.com/showarticle/1636/#eq-9">9</a> from part 1, OR</li>
+<li>Utilization is less than 100% (provided task periods are all <a href="https://www.embeddedrelated.com/showarticle/1636.php#the-utilization-test-and-harmonic-rate-monotonic-scheduling">harmonic multiples</a> of the others), OR</li>
+<li>Every tasks' WCRT is less than or equal to its deadline. WCRT is calculated using equation <a href="https://www.embeddedrelated.com/showarticle/1636/#eq-3">3</a> from part 1.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>The schedulability of an ISR depends on whether or not ISRs can be preempted by other ISRs on your processor, but otherwise follows the worst-case response time analysis above: if the WCRT of an ISR (as calculated using equation <a href="https://www.embeddedrelated.com/showarticle/1652/#eq-3-and-4">3 or 4</a> from part 2) is less than its deadline, than the ISR is schedulable.
+<ul>
+<li>ISRs are a form of hardware preemption and, thus, introduce the possibility of race conditions into your code. In general, ISRs should be short, usually only setting a flag or posting a value to a mailbox or queue. Additionally, you'll need to ensure that <em>no</em> errors could result from an ISR running in between <em>any two other instructions</em> in <em>any</em> other part of your code.</li>
+</ul>
+</li>
+<li>If we allow tasks to have deadlines that are <em>longer</em> than their periods, then a set of tasks is schedulable if <em>these</em> conditions are true:
+<ul>
+<li><strong>Non-preemptive, fixed priority</strong> (e.g. "Superduperloop", ULWOS2, cocoOS, SST0/QV): Every tasks' WCRT is less than or equal to its deadline. A task's WCRT (equation <a href="#eq-6">6</a>) is the maximum response time of any item that could be added to the queue. Each item's response time is given by equation <a href="#eq-5">5</a> and each item's completion time (on which the response time depends) is given by equation <a href="#eq-3">3</a>.</li>
+<li><strong>Preemptive, fixed priority</strong> (e.g. RTOS): Every tasks' WCRT is less than or equal to its deadline. WCRT can be calculated (or upper-bounded) in two ways: <br>
+<ul>
+<li>WCRT is calculated using equation <a href="#eq-6">6</a>, which is the maximum response time of any item that could be added to the queue. Each item's response time is given by equation <a href="#eq-5">5</a> and each item's completion time (on which the response time depends) is given by equation <a href="#eq-4">4</a>, OR</li>
+<li>An upper-bound on WCRT is given by equation <a href="#eq-7">7</a>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>If your system isn't schedulable, you can help make it so by:
+<ul>
+<li>Running some tasks more often than is needed (especially if this makes the task periods harmonic or makes it such that tasks with <a href="https://www.embeddedrelated.com/showarticle/1652.php#case-1">increasing deadlines universally have longer execution times</a>)</li>
+<li><a href="https://www.embeddedrelated.com/showarticle/1652.php#reducing-wcet">Reducing a task's WCET</a><br>
+<ul>
+<li>Run the CPU at a faster clock speed.</li>
+<li>Move tasks with shorter deadlines to dedicated co-processors.</li>
+<li>Move work done by a task onto a hardware peripheral.</li>
+<li>Look for speed optimizations in your code or toolchain such as loop unrolling, compiling at a higher optimization level, etc.</li>
+<li>Break up a task into <a href="https://www.embeddedrelated.com/showarticle/1652.php#change-3">states</a>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>Lastly, a scheduler is made useful with various forms of <a href="https://www.embeddedrelated.com/showarticle/1653.php#diy-ipc">inter-process communication</a> (IPC), which allow tasks to communicate and synchronize with each other. The forms of IPC below were added (without too much difficulty, if I may say so myself!) to the "Superduperloop" and they could likely also be added to the other fixed-priority schedulers I mentioned in the third article (ULWOS2, cocoOS, and SST0/QV) without too much difficulty.
+<ul>
+<li><a href="https://www.embeddedrelated.com/showarticle/1653.php#thread-flags">Thread flags/Binary semaphores</a></li>
+<li><a href="https://www.embeddedrelated.com/showarticle/1653.php#event-flags">Event flags</a></li>
+<li><a href="#mailboxes">Mailboxes</a></li>
+<li><a href="#queues">Queues</a></li>
+<li><a href="#counting-semaphores">Counting semaphores</a></li>
+<li><a href="#observer">Observer pattern</a></li>
+<li><a href="#marquee">Marquee</a></li>
+</ul>
+</li>
+</ul>
+<p>I hope you've enjoyed this tour of non-preemptive schedulers and, if you've made it this far, thanks so much for your time and attention! May your tasks always meet their deadlines and your code be race-free!</p>
+<h2 id="references">References</h2>
+<ul>
+<li>A lot of my notes come from taking Professor Alex Dean's classes at NC State: ECE560 (Embedded Systems Architectures) and ECE561 (Embedded Systems Design/"Optimization"). His course notes reference, among others, the following articles and books:
+<ul>
+<li>George, L., Rivierre, N., &amp; Spuri, M. (1996). <a href="https://www.rocq.inria.fr/novaltis/research_reports/RR-2966.pdf"><em>Technical Report RR-2966: Preemptive and Non-preemptive Real-time Uniprocessor Scheduling.</em></a> INRIA.</li>
+</ul>
+<ul>
+<li>Davis, R. I., Thekkilakattil, A., Gettings, O., Dobrin, R., Punnekkat, S., &amp; Chen, J.-J. (2017). Exact speedup factors and sub-optimality for non-preemptive scheduling. Real-Time Systems, 54(1), 208&ndash;246. <a href="https://doi.org/10.1007/s11241-017-9294-3">https://doi.org/10.1007/s11241-017-9294-3</a></li>
+</ul>
+</li>
+<li>K. Jeffay, D. F. Stanat and C. U. Martel, <a href="https://www.cs.unc.edu/~jeffay/papers/RTSS-91.pdf">"On non-preemptive scheduling of period and sporadic tasks,"</a> <em>[1991] Proceedings Twelfth Real-Time Systems Symposium</em>, San Antonio, TX, USA, 1991, pp. 129-139, doi: 10.1109/REAL.1991.160366.</li>
+</ul>

@@ -1,0 +1,398 @@
+<h1>Simulating Your Embedded Project on Your Computer (Part 1)</h1>
+<p>by Nathan Jones</p>
+<img src="/home/nathancharlesjones/Documents/Work/llc_assets/logo_full.png" width="300">
+<h2>Contents</h2>
+<ul>
+<li><a href="#intro">Introduction</a></li>
+<li><a href="#benefits">The benefits of simulation</a></li>
+<li><a href="#isolate">First, isolate the madness</a></li>
+<li><a href="#the-simplest-option">The simplest option: printf/scanf</a>
+<ul>
+<li><a href="#non-blocking">Making scanf/getchar non-blocking</a></li>
+<li><a href="#races">A Note About Race Conditions</a></li>
+<li><a href="#pretty-printf">Making printf prettier</a></li>
+</ul>
+</li>
+<li><a href="#uses">What can I do with printf/scanf?</a></li>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#resources">Resources</a></li>
+</ul>
+<p id="intro">Part 2 of this series can be found <a href="https://www.embeddedrelated.com/showarticle/1697.php">here</a>.</p>
+<h2 id="intro">Introduction</h2>
+<p>After reading <a href="https://www.amazon.com/Patterns-Machine-Software-Engineering-Development/dp/1484264398">"Patterns in the Machine"</a> by John Taylor and lots of stuff on <a href="https://embeddedartistry.com/">Embedded Artistry</a>, I would say that I had come around to the idea that it was a "good thing" to be able to simulate your embedded system on your computer. I even took what I'd learned in the Embedded Artistry <a href="https://embeddedartistry.com/course/introduction-to-build-systems/">"Introduction to Build Systems using make"</a> course and <a href="https://github.com/nathancharlesjones/Generic-Makefile-based-Project-for-x86-and-STM32F1">published a makefile</a> that demonstrated how to target a simple "blinky" program to both an STM32 and an x86. On a recent project, though, I wanted to build on this knowledge and I discovered that many of the techniques I had thought I would use to simulate my embedded project were too complicated to be useful and certain techniques that seemed too simple to be useful were actually the perfect blend of both! In this two-part blog series, I'll share with you the arguments in favor of simulation (so, hopefully, you too think its a "good thing") and show you what works (and what doesn't work) to help you to simply, easily, and quickly simulate your embedded project on your computer.</p>
+<p>You can see working implementations of many of the techniques discussed in this article and the next (including the two that are demonstrated in the videos below) at <a href="https://github.com/nathancharlesjones/simulator-examples/">this Github repo</a>.</p>
+<h2 id="benefits">The benefits of simulation</h2>
+<p>As developers of embedded systems, everything we do is directed at getting a custom piece of hardware and software to work correctly. The code we write isn't <em>supposed</em> to run on our laptop or desktop computers, it's supposed to run on a tiny microcontroller; it's supposed to interact with real sensors and send directions to manipulate real motors or screens or BLE modules. Because of this, I think it's not until you've been developing embedded systems for some time that you start to wish there was a way to <em>not</em> be so tied to the hardware. Has any of this happened to you?</p>
+<ul>
+<li>You want to start writing code for your embedded project (or maybe your employer is requiring it of you), but you don't know which MCU&nbsp;or sensor is being used, so you feel like you&nbsp;<em>can't</em><span class="redactor-invisible-space"> start writing code.</span></li>
+<li><span class="redactor-invisible-space">Your embedded project requires a complex physical setup, or maybe there's only <em>one</em><span class="redactor-invisible-space"> working setup, so that your ability to actually run your code on the hardware is limited.</span></span></li>
+<li><span class="redactor-invisible-space"><span class="redactor-invisible-space">You spend hours debugging an issue in software that turns out to be the result of a loose wire (or other hardware problem).</span></span></li>
+<li><span class="redactor-invisible-space"><span class="redactor-invisible-space">The project requirements change partway through development (e.g. the target MCU changes, someone wants to add a web interface, etc) and it becomes a major struggle to refactor the code to meet them.</span></span></li>
+</ul>
+<p>These are all problems that arise from writing code that is too tightly coupled to the underlying hardware and they all have one simple solution: <strong>find a way to simulate your project on your computer</strong>. If your <em>actual</em> project code (minus the truly hardware specific stuff like toggling GPIO pins) can run on your computer, then:</p>
+<ul>
+<li>You can start writing code as soon as you have the project requirements, with no (or little) concern about which MCU or sensor will eventually be selected.&nbsp;</li>
+<li>You can run and test your code on your own, without ever needing to use any physical setup.</li>
+<li>You can be assured that your application code&nbsp;works correctly, isolating faults to the hardware or hardware-interfacing code.</li>
+<li>You can more easily switch out hardware implementations, making it easier to adapt to changing project requirements.</li>
+</ul>
+<p>But the benefits don't stop there! Once you have a simulation of your embedded project that runs on your computer:</p>
+<ul>
+<li>You can use programs like Valgrind or other programs that only work on full computers to profile your code or to detect memory management and threading bugs.</li>
+<li>You can use <a href="https://sourceware.org/gdb/wiki/ReverseDebug">reverse debugging</a> in GDB, which is like having a full trace of your&nbsp;program's execution while its running!</li>
+<li>Later on in the development of your embedded project, in many cases, you can easily turn your simulator into a dashboard for the code that's running on your microcontroller, giving you the ability to view and change the system as its running.</li>
+</ul>
+<p>In short, it's like getting a 10x speed-up on the development of your embedded project! Uri Shaked, created of the <a href="https://www.google.com/url?sa=t&amp;source=web&amp;rct=j&amp;opi=89978449&amp;url=https://wokwi.com/">Wokwi</a> simulator, describes exactly how this idea helped him finish a project on an otherwise impossible timeline in his 2024 Embedded Online Conference talk, <a href="https://embeddedonlineconference.com/session/Breaking_Good_Why_Virtual_Hardware_Prefers_Rough_Handling">"Breaking Good: Why Virtual Hardware Prefers Rough Handling"</a>.</p>
+<figure><center><img src="https://imgur.com/B4CjFCF.png"></center>
+<figcaption>The badge.</figcaption>
+</figure>
+<figure><center><img src="https://imgur.com/Y0rIV75.png"></center>
+<figcaption>Running the code in a simulation.</figcaption>
+</figure>
+<p>(If you've never attended the EOC and don't have access to the video, Uri describes a project he worked on for a conference badge that used LEDs as light sensors. Each test of the firmware took about three minutes to complete and there were 40 different scenarios that needed testing [some in the day and some at night]. And he only had <u><em>three days</em></u> to write the firmware! Uri describes how he used a Wokwi precursor to run all of his tests at a faster-than-real-life pace so that he could actually take all three days to write his firmware, which he successfully did!)</p>
+<figure><center><img src="https://imgur.com/7foBMaU.png"></center>
+<figcaption>What the Wokwi simulator looks like now.</figcaption>
+</figure>
+<p>There are lots of ways to simulate your embedded system besides Wokwi and I tried many of them out on a recent project. It turns out that some methods are much simpler than others! And simplicity matters, since the whole reason we want a simulator in the first place is to speed up the development of our actual embedded project. Setting up a simulator should only take a <em>fraction</em> of the time it will take to complete your project, otherwise we run the risk of spending more time configuring the simulator than we would ever gain by using it.</p>
+<figure><center><img src="https://imgs.xkcd.com/comics/automation_2x.png" width="400"></center></figure>
+<p>In this article and the next, I'll show you how to use a number of those techniques (the simpler ones!) to achieve the benefits of simulation that we've identified above.</p>
+<h2 id="isolate">First, isolate the madness</h2>
+<p>To be able to simulate (at least part of) your embedded project on your computer, there has to be <em>some</em> part of it that doesn't depend on the hardware (unless you're lucky enough to find a simulator that supports your exact processor and your collection of inputs/outputs). If your project currently looks like this (an excerpt from a program demonstrating a simple command-line interface; notice all the references to the STM32 HAL):</p>
+<pre>HAL_UART_Receive_IT(&amp;huart2, cmd, (size_t)1);
+while (1)
+{
+    if( cmd_received )
+    {
+        // Process the command by comparing it to "on" and "off".
+        //    
+        if( strcmp((char*)cmd, "on") == 0 ) led_is_blinking = true;
+        else if( strcmp((char*)cmd, "off") == 0 )
+        {
+            led_is_blinking = false;
+            HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+        }
+        else
+        {
+            uint8_t error_msg[] = "Unknown command\n\r";
+            HAL_UART_Transmit(&amp;huart2, error_msg, strlen((char*)error_msg), HAL_MAX_DELAY);
+        }
+        // Reset variables to receive another command.
+        //
+        memset(cmd, 0, strlen((char*)cmd));
+        p_current_char = cmd;
+        cmd_received = false;
+        HAL_UART_Receive_IT(&amp;huart2, cmd, (size_t)1);
+    }
+    // Non-blocking Blinky. If it's been &lt;interval_ms&gt; since
+    // the last time we toggled the LED (&lt;prev_millis&gt;), then
+    // toggle the LED.
+    //
+    if( led_is_blinking )
+    {
+        if( HAL_GetTick() - prev_millis &gt; interval_ms )
+        {
+            prev_millis = HAL_GetTick();
+            if( HAL_GPIO_ReadPin(LED_GPIO_Port, LED_Pin) == GPIO_PIN_RESET )
+            {
+                HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+            }
+            else
+            {
+                HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+            }
+        }
+    }
+}
+</pre>
+<p>then you'll need to do some refactoring to make it look like this:</p>
+<pre>initHardware(argc, argv);
+while(1)
+{
+    if( cmd_received )
+    {
+        // Process the command by comparing it to "on" and "off".
+        //    
+        if( strcmp((char*)cmd, "on") == 0 ) led_is_blinking = true;
+        else if( strcmp((char*)cmd, "off") == 0 )
+        {
+            led_is_blinking = false;
+            turnOffLED();
+        }
+        else
+        {
+            uint8_t error_msg[] = "Unknown command\n\r";
+            send(error_msg);
+        }
+        // Reset variables to receive another command.
+        //
+        resetUART();
+    }
+    // Non-blocking Blinky. If it's been &lt;interval_ms&gt; since
+    // the last time we toggled the LED (&lt;prev_millis&gt;), then
+    // toggle the LED.
+    //
+    if( led_is_blinking )
+    {
+        if( getMillis() - prev_millis &gt; interval_ms )
+        {
+            prev_millis = getMillis();
+            if( ledIsOff() )
+            {
+                turnOnLED();
+            }
+            else
+            {
+                turnOffLED();
+            }
+        }
+    }
+}
+</pre>
+<p>Notice how the second listing makes <em>no</em> assumptions about what system the code is running on nor even&nbsp;<em>how</em><span class="redactor-invisible-space">, exactly, the LED is turned on or off; as long as the functions shown above behave like we expect them to, the application code is none the wiser. (I&nbsp;like to pass <code>argc</code> and <code>argv</code> to <code>initHardware()</code> in case I want to use them later on to modify the runtime behavior of the desktop version.)<br></span></p>
+<p><span class="redactor-invisible-space">To get to this point, simply pull out all of your hardware-specific code and put it into its own source file (I like to name these after the processor that I intend them to run on, such as "x86.c" or "STM32.c"). In this case, that file might look like this:<br></span></p>
+<pre>****************************
+*        STM32.c           *
+****************************
+#define LED_Pin GPIO_PIN_3
+#define LED_GPIO_Port GPIOB
+UART_HandleTypeDef huart2;
+void initHardware(int argc, char ** argv)
+{
+    HAL_UART_Receive_IT(&amp;huart2, cmd, (size_t)1);
+}
+void send(char * msg)
+{
+    HAL_UART_Transmit(&amp;huart2, msg, strlen((char*)msg), HAL_MAX_DELAY);
+}
+void resetUART(void)
+{
+    memset(cmd, 0, strlen((char*)cmd));
+    p_current_char = cmd;
+    cmd_received = false;
+    HAL_UART_Receive_IT(&amp;huart2, cmd, (size_t)1);
+}
+int getMillis(void)
+{
+    return HAL_GetTick();
+}
+void turnOnLED(void)
+{
+    HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+}
+void turnOffLED(void)
+{
+    HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+}
+bool ledIsOff(void)
+{
+    return HAL_GPIO_ReadPin(LED_GPIO_Port, LED_Pin) == GPIO_PIN_RESET;
+}
+</pre>
+<p><span class="redactor-invisible-space">Your application code (that second listing), is now hardware agnostic! Furthermore, you have one source file ("STM32.c") that provides implementations for the functions used by your application code that, if compiled with the right libraries and settings, will result in a binary file that you can program onto your STM32 microcontroller. Our job, now, is to find <em>other</em><span class="redactor-invisible-space"> implementations for those functions that fulfill the same expectations <em>and</em><span class="redactor-invisible-space"> that can run on your computer. (We'll focus on retargeting the IO functions in this article; I have faith in your ability to replace <code>HAL_GetTick()</code> with an equivalent function from <code>time.h</code> or <code>chrono</code>.)<br></span></span></span></p>
+<h2 id="the-simplest-option">The simplest option: printf/scanf</h2>
+<p>Yup, you read that right: to create the simplest simulator we're going to implement <em>all</em> outputs with <code>printf</code> and <em>all</em> inputs with <code>scanf</code> (or a close cousin, such as <code>fgets</code> or <code>getchar</code>)! You'll compile this simulator for your laptop or desktop computer after creating a file (i.e. "x86.c") that implements any hardware-dependent functions (e.g. <code>display()</code>, <code>readButton()</code>, etc) using just <code>printf</code> or <code>scanf</code>. For example:</p>
+<ul>
+<li><span class="redactor-invisible-space">Are you reading a button? Use <code>if(getchar() == 'a'){ ... }</code> (here, the 'a' key is used to simulate the button on our embedded system)<br></span></li>
+<li><span class="redactor-invisible-space">Are you reading from a potentiometer? Use <code>scanf("%d", pot_val);</code><br></span></li>
+<li><span class="redactor-invisible-space">Are you sending out a PWM to a motor or LED? Use <code>printf("DC for motor is now %d%%\n", dc_val_for_motor_pwm);</code><br></span></li>
+</ul>
+<p><span class="redactor-invisible-space">If you need to simulate multiple inputs, then you can treat <code>scanf</code>/<code>getchar</code> like a command-line interface, reading characters until a newline is reached and then parsing the string that was entered.<br></span></p>
+<p><span class="redactor-invisible-space">Here's an example of what this might look like for a simple embedded system that uses an accelerometer to control the speed of a motor and the brightness of an LED (code <a href="https://github.com/nathancharlesjones/simulator-examples/blob/main/hardware/x86/x86_00_simple-printf_basic.c">here</a>). Users can interact with and test this system by entering "x", "y", or "z" followed by a double-precision floating point number to simulate the accelerometer reading those values in those directions. Typing "t" simulates double-tapping the accelerometer, which changes the direction that is used to set the motor speed (x, y, z, or total); the LED brightness is always set by the total acceleration (the sum of squares of the three acceleration values).<br></span></p>
+<p><iframe src="https://www.youtube.com/embed/nlTBdMFNMJs?si=IIOFSev_t37JXyzn" frameborder="0" width="560" height="315" allowfullscreen="allowfullscreen"></iframe></p>
+<p><span class="redactor-invisible-space">Beware of the following "gotchas", though:<br></span></p>
+<ul>
+<li><span class="redactor-invisible-space"><code>scanf</code> <em>won't</em> consume the newline (<code>\n</code>) in stdin that signals&nbsp;</span><code>scanf</code><span class="redactor-invisible-space"> to return; it will thus be the first character read by scanf on your code's next pass. If your code can't handle this rogue newline in stdin, then you'll need to clear stdin using the snippet of code discussed <a href="https://stackoverflow.com/questions/7898215/how-can-i-clear-an-input-buffer-in-c">here</a> after processing any input (or use <code>getchar()</code> instead).</span></li>
+<li><span class="redactor-invisible-space"><code>printf</code> <em></em>only <em>actually</em> prints everything you send it if it sees a newline (which is like a signal that tells <span class="redactor-invisible-space"><span class="redactor-invisible-space"><code>printf</code> </span>to clear its buffer to stdout). </span><span class="redactor-invisible-space">At least on my machine, </span>it seems like <span class="redactor-invisible-space"><span class="redactor-invisible-space"><code>printf</code></span>'s buffer is two characters long, which means that the last two characters of the most recent call to <span class="redactor-invisible-space"><span class="redactor-invisible-space"><code>printf</code> </span></span>won't show up on the terminal unless I follow up that call to <span class="redactor-invisible-space"><span class="redactor-invisible-space"><code>printf</code> </span></span>with a call to <code>fflush(stdout)</code> (clearing that two character buffer).</span><br></span></li>
+</ul>
+<p><span class="redactor-invisible-space">With simplicity comes trade-offs in other areas, though. Let discuss the limitations of this method and a few ways to mitigate them.<br></span></p>
+<h3 id="non-blocking">Making scanf/getchar non-blocking</h3>
+<p><span class="redactor-invisible-space">Both <code>scanf</code> and <code>getchar</code> are blocking functions, holding a program hostage until the user types something and then presses the Enter key. Adding a call to either one anywhere in your main loop will stall the rest of your tasks, possibly causing it to fail! One solution to this is to put the call to <code>scanf</code>/<span class="redactor-invisible-space"><code>getchar</code> </span>in its own thread, allowing the rest of your application to continue running while that thread waits for user input.<br></span></p>
+<pre>****************************
+*          x86.c           *
+****************************
+#include &lt;pthread.h&gt;
+#include &lt;semaphore.h&gt;
+void* inputThread(void*);
+pthread_t h_inputThread;
+sem_t buttonSemaphore;
+void initHardware(void)
+{
+    pthread_create(&amp;h_inputThread, NULL, inputThread, NULL);
+}
+void* inputThread(void* data)
+{
+    while(1)
+    {
+        char c = getchar();
+        if('b' == c) sem_post(&amp;buttonSemaphore);
+    }
+}
+</pre>
+<p><span class="redactor-invisible-space">Here, the pthread library is used to put the call to <code>getchar()</code> into its own thread. This thread can then signal to the rest of the program when a new value has been entered by any means of inter-task communication, such as setting a global variable, posting a semaphore, adding a value to a queue, etc. The code above will post to <code>buttonSemaphore</code> when the user presses 'b' + Enter. Code that is waiting for the button can simply check if the semaphore has been posted to or not.<br></span></p>
+<p><span class="redactor-invisible-space">Another solution is to read input values from a file, as opposed to typing them in by hand. We can accomplish this by creating a text file with the appropriate inputs and replacing a call to <code>scanf</code> with a call to <code>fread</code> or <code>fgetc</code>. Let's say we were building a simple embedded system that did one thing when a button was pressed:<br></span></p>
+<pre>****************************
+*         main.c           *
+****************************
+void main(void)
+{
+    initHardware();
+    while(1)
+    {
+        if(buttonIsPressed()) doStuff();
+    }
+}
+</pre>
+<p><span class="redactor-invisible-space">and, also, that we had a text file called "input.txt" in which was stored the following sequence:<br></span></p>
+<pre>b----b--------b-b
+</pre>
+<p><span class="redactor-invisible-space">By creating an "x86.c" file that looked like this:<br></span></p>
+<pre>****************************
+*          x86.c           *
+****************************
+#include &lt;stdio.h&gt;
+FILE * inputs;
+void initHardware(void)
+{
+    inputs = fopen("inputs.txt", "r");
+}
+bool buttonIsPressed(void)
+{
+    return (fgetc(inputs) == 'b');
+}
+</pre>
+<p><span class="redactor-invisible-space">we can "spoof" the application into thinking that the button was pressed on the 1st, 6th, 15th and 17th times through the main loop. A more complete implementation&nbsp;might restart the file over once the end of the file is reached (allowing for the inputs to repeated over and over again). A more advanced implementation (left to the reader) might:<br></span></p>
+<ul>
+<li><span class="redactor-invisible-space">use the text file to specify <em>when</em> the output of <code>buttonIsPressed</code> should be true (e.g. the contents of the text file become <code>1,6,15,17</code>) to avoid typing hundreds of dashes, or<br></span></li>
+<li><span class="redactor-invisible-space">put <code>buttonIsPressed</code> inside a task that only runs at 10 or 100 Hz so that the timing of the user inputs is better known, ex:</span></li>
+</ul>
+<pre>****************************
+*          x86.c           *
+****************************
+#include &lt;stdio.h&gt;
+FILE * inputs;
+void initHardware(void)
+{
+    inputs = fopen("inputs.txt", "r");
+}
+bool buttonIsPressed(void)
+{
+    static unsigned long next = -1;
+    static unsigned long period = 10; // Run task at 100 Hz (i.e. every 10 ms)
+    if(next - getMillis() &gt; period)
+    {
+        next += period;
+        return (fgetc(inputs) == 'b');
+    }
+    else return false;
+}
+</pre>
+<p>By a similar token, we can replace (or add to) <code>printf</code> with <code>fwrite</code>. If we write data to a file in a common format like CSV, XML, or JSON, we have a detailed log of every output our microcontroller changed during the course of its execution! From a testing perspective, we can use this to confirm that the application behaves the way we expect (e.g. "after input X is applied at 100 ms after program initiation, our program should set the motor speed to Y"). Or we could simply feed this data to another program (like Excel) to visualize what happened on our microcontroller after each execution.</p>
+<h3 id="races">A Note About Race Conditions</h3>
+<p><strong></strong><strong>(**UPDATE**: Added 07 Oct 2024)</strong> However, now that our program has two independent threads of execution (our application code and the thread running <code>scanf</code>), we have to be cautious to not introduce any race conditions into our code. This could accidentally happen in a handful of different ways.</p>
+<ol>
+<li><strong><code>Scanf</code> writes to a variable non-atomically that another thread reads from or writes to at any point.</strong><br>This is a data race and could result in erroneous values if that thread reads from or writes to the shared variable in the middle of <code>scanf</code> also writing to it (or vice versa, depending on which thread interrupts which). Variables which can be accessed atomically on your system are probably safe, though its not guaranteed; it's possible that <code>scanf</code> uses an <em>atomic</em> variable <em>non-atomically</em> while it's writing to it and, if it did, then we'd still have a race condition. For example, maybe <code>scanf</code> parses an integer one digit at a time, updating the variable live as a user types "1" (setting the variable to 1) then "4" (updating the variable to 14) then "5" (updating the variable to 145). If the application code tried to read the variable before <code>scanf</code> was done, it would get a garbage value. This would all depend on the implementation of <code>scanf</code>, of course, of which I'm ignorant.</li>
+<li><strong><code>Scanf</code> writes to two or more variables at the same time that should all be updated together.</strong><br>Although we wouldn't have any data races in this case, we'd still have a similar problem: data that should be accessed atomically isn't. For example, imagine we were using <code>scanf</code> to read x, y, and z acceleration values while another thread was accessing them. Without synchronization, our application code may read an old value of x but new values for y and z (or vice versa, depending on which thread is interrupting which).</li>
+<li><strong><code>Scanf</code> is called by two or more threads.</strong><br>This is mostly just bad practice. From what I can tell, <code>scanf</code> <em>is</em> thread-safe but this <em>only</em> means that whichever <code>scanf</code> gets called first is the one that will process your input. It would be better to treat stdin like an MCU peripheral: use a mutex to prevent two or more threads from simultaneous access or move all accesses to stdin into a single module or thread. In <a href="https://github.com/nathancharlesjones/simulator-examples/blob/ef04097c4e9600f68785ff3c54b389fc9e643190/hardware/x86/simple-printf_advanced.c#L25">this example</a> ("Simple printf, Basic"), I simulate an embedded system that has a serial interface, but I also use stdin to get commands from the user to control the simulation. My solution was to only get user input inside a single thread and either operate on that data (if it was intended to control the simulation) or pass it through to the application code (if it was intended for the serial link on the embedded system).</li>
+</ol>
+<p>The weirdest part about this is that you might have functions in the same source file that execute in different threads. In a variation on that last example (<a href="https://github.com/nathancharlesjones/simulator-examples/blob/main/hardware/x86/pretty-printf_advanced_v1.c">"Pretty printf, Advanced"</a>), the main application <a href="https://github.com/nathancharlesjones/simulator-examples/blob/ef04097c4e9600f68785ff3c54b389fc9e643190/application/advanced/application.c#L120">calls hardware-dependent functions</a> like <code>readAccel_gs</code> and <code>setMotorSpeed</code> that <a href="https://github.com/nathancharlesjones/simulator-examples/blob/ef04097c4e9600f68785ff3c54b389fc9e643190/hardware/x86/pretty-printf_advanced_v1.c#L143">read from or write to variables</a> in the hardware-dependent source file like <code>curr_x</code> or <code>curr_motor_speed</code>. At the same time, I have a thread in the hardware-dependent source file using <code>getchar</code> to collect user input which sometimes <a href="https://github.com/nathancharlesjones/simulator-examples/blob/ef04097c4e9600f68785ff3c54b389fc9e643190/application/advanced/application.c#L58">calls public functions in the application code</a> to set or modify variables in that source file like <code>max_accel</code> and <code>period</code>.</p>
+<figure><center><img src="https://imgur.com/GAfJaDa.png"></center></figure>
+<p>I luck out in that each of these variables can be accessed atomically, but it's important to identify those possible race conditions and ensure that none exist for your program to work correctly.</p>
+<p>The solutions to these (and other) race conditions are to introduce some form of synchronization that will prevent simultaneous access to the data from multiple threads. For example:</p>
+<ol>
+<li>Protect the data with a mutex or semaphore (code can't access the data, to read or write, if they can't acquire the mutex/get the binary semaphore). Or, if there is just one writer and one reader, a simpler option is to set a global flag when the data has been written to and clear the flag when its been read; that's the solution I took in a <a href="https://github.com/nathancharlesjones/simulator-examples/blob/ef04097c4e9600f68785ff3c54b389fc9e643190/hardware/x86/serial_advanced.c#L102">different</a> <a href="https://github.com/nathancharlesjones/simulator-examples/blob/ef04097c4e9600f68785ff3c54b389fc9e643190/hardware/x86/serial_advanced.c#L128">example</a> about trying to read from/write to three acceleration values at the same time.</li>
+<li>When writing new data, post it by value to a mailbox/queue. Then any reader gets exclusive access to that piece of data by virtue of having exclusive access to its own queue. (Things get a little weirder if you want to pass a piece of data by reference or if you need to support multiple threads sending and receiving data, but that's a topic for another article.)</li>
+</ol>
+<h3 id="pretty-printf">Making printf prettier</h3>
+<p>The output from <code>printf</code> could be less-than-useful if you're using it many dozens or hundreds of times a second and the text is flying past in your terminal so quickly you feel like you're trying to read the Matrix.</p>
+<figure><center><img src="https://raw.githubusercontent.com/jsbueno/terminal_matrix/gh-pages/screenshot.png"></center></figure>
+<p>The first solution for this is to simply print out your values more slowly. We can use the same technique as above when we read from "inputs.txt" at 100 Hz:</p>
+<pre>void setMotorDC(int dc)
+{
+    static unsigned long next = -1;
+    static unsigned long period = 1000; // Run task at 1 Hz (i.e. every 1000 ms)
+    if(next - getMillis() &gt; period)
+    {
+        printf("DC for motor is now %d%%\n", dc);
+        next += period;
+    }
+}
+</pre>
+<p>This is how the example in the video above is configured. We could even get fancy and report things like the maximum, minimum, or average values for the motor's duty cycle.</p>
+<p>Another useful technique is to clear the terminal screen periodically. This works particularly well if you print out the same things in the same order or if you're just printing messages that can overwrite each other. Clearing the screen will make sure the cursor starts from the same location, helping ensure that your values print out in the same place every time.</p>
+<p>One way to clear the screen is to use <code>printf("\033[2J")</code>. This is actually a VT100 command code that was used in Medieval Europe to help control remote terminals. Many (but not all) terminal emulators, like bash, still respond to these codes, allowing you to do some interesting things with <code>printf</code>, such as:</p>
+<ul>
+<li>Change the font/foreground color of your text to bright green (RGB value of [35, 194, 40]) and the background color to bright red (RGB value of [255, 0, 0]) (from <a href="https://medium.com/israeli-tech-radar/terminal-escape-codes-are-awesome-heres-why-c8eb938b1a1c">this</a> article): <code>printf("\033[38;2;35;194;40m\033[48;2;255;0;0m");</code></li>
+</ul>
+<figure><center><img src="https://imgur.com/CCT3zmY.png"></center></figure>
+<ul>
+<li>Print flashing words by moving the cursor back a line (example code <a href="https://www.programminglogic.com/playing-with-text-and-animations-on-linux-terminal/">here</a>)</li>
+</ul>
+<figure><center><img src="https://imgur.com/yVtQGgP.png"></center></figure>
+<figure><center><img src="https://imgur.com/NRDex0C.png"></center></figure>
+<p>The most helpful ones, IMHO, are these:</p>
+<ul>
+<li><code>"\033[2J"</code>: (previously mentioned) Clears the terminal (leaving the cursor where it is)</li>
+<li><code>"\033c"</code>: Resets the terminal (cursor returns to the top-left corner)</li>
+<li><code>"\033[&lt;y&gt;;&lt;x&gt;H"</code>: Send the cursor to position (<code>&lt;y&gt;</code>, <code>&lt;x&gt;</code>), where the top-left corner is (1,1) (Notice the <strong>y-coordinate comes first</strong>!).
+<ul>
+<li>The <code>&lt;y&gt;</code> and <code>&lt;x&gt;</code> are technically optional and default to 1 when unspecified; <code>"\033[;H"</code> also sends the cursor to the top-left corner of the terminal.</li>
+</ul>
+</li>
+<li><code>"\0337"</code>: Save the state of the cursor</li>
+<li><code>"\0338"</code>: Restore the state of the cursor</li>
+</ul>
+<p>Given their age, these codes aren't exactly guaranteed to work with all terminals, so YMMV.</p>
+<p>Lastly, we can also get fancy with just our ASCII characters! If we want to print out the same values in the same places, we can make little ASCII drawings to put boxes around those values or to draw arrows from one box to another.</p>
+<pre>/* Created using asciiflow.com */
+char background[] = "+-------------+       +--------+\n"
+                    "|  Dashboard  |  Pot  |   758  |\n" 
+                    "+-------------+    val|(2.440V)|\n"
+                    "      +-------+       +--------+\n"
+                    " Motor|101 RPM|  Button status \n"
+                    " speed|       |  +-------------+\n"
+                    "      +-------+  |Not Pressed  |\n"
+                    "                 +-------------+\n";
+</pre>
+<p>We can incorporate these box drawings into our code in two ways.</p>
+<p>First, you can replace the spaces where your values will go with the right <a href="https://byuh.doncolton.com/courses/tut/printf.pdf">printf formatting specification</a> (e.g. <code>%-8s</code> prints a minimum of 8 characters from a string, left-justified; <code>%05d</code> prints at least 5 digits of an integer padded with 0s in front, etc). The template might then look like this:</p>
+<pre>/* Created using asciiflow.com */
+char background[] = "+--------------+       +--------+\n"
+                    "|  Dashboard   |  Pot  |  %.4d  |\n" 
+                    "+--------------+    val|(%1.3fV)|\n"
+                    "      +--------+       +--------+\n"
+                    " Motor|%.4d RPM|  Button status \n"
+                    " speed|        |  +-------------+\n"
+                    "      +--------+  |%-11.11s" "  |\n"
+                    "                  +-------------+\n";
+</pre>
+<p>Then periodically execute <code>printf(background, pot_val, pot_Volt, motor_speed, button_status);</code> to update the display. If your values don't have convenient "getter" functions, then they can be stored or copied into local variables for this call to <code>printf</code> to access.</p>
+<p>(What's going on with this string definition? C will treat adjacent strings as being contiguous, so <code>char name[] = "Na" "than"</code> is the same as <code>char name[] = "Nathan"</code> in C. That's how each line gets "concatenated" with the one before. This also helps us preserve our layout, even after we include all of the format strings. For example, the format string <code>%-11.11s</code> will take up 11 characters when it's printed to the terminal but only 8 characters when it shows up in our string definition. To preserve the ASCII layout of our "background" in our code, we'll close off the string and add enough space so that the whole thing takes up exactly as much space as it will when it's printed. Now, <code>%-11.11s" "</code>, with those two extra quotation marks and the space in the middle that the compiler will ignore when it puts the string before and after it together, takes up exactly 11 characters on our screen, just like the string will when its printed. See <a href="https://embeddedartistry.com/blog/2017/07/05/printf-a-limited-number-of-characters-from-a-string/">here</a> for information about the <code>%-11.11s</code> format string.)</p>
+<p>Here's an example of what it might look like if we went wild with this technique! Using <a href="https://asciiflow.com/">ASCIIFlow</a> and <a href="https://www.asciiart.eu/text-to-ascii-art">this website</a>, I created the diagram you can see in the video below, with <a href="https://github.com/nathancharlesjones/simulator-examples/blob/428d1c26d016eed966f6425ee6abf643ddb9edd3/hardware/x86/x86_01_pretty-printf_advanced_v2.c#L15">spots in the diagram for each of the variables</a> I wanted to be printed. The terminal is <a href="https://github.com/nathancharlesjones/simulator-examples/blob/428d1c26d016eed966f6425ee6abf643ddb9edd3/hardware/x86/x86_01_pretty-printf_advanced_v2.c#L60">cleared and re-printed</a> anytime a variable gets updated, which is fast enough that the display feels like its updating in near-real time. A <a href="https://github.com/nathancharlesjones/simulator-examples/blob/428d1c26d016eed966f6425ee6abf643ddb9edd3/hardware/x86/x86_01_pretty-printf_advanced_v2.c#L74">pthread</a> reads input from the user (using <code>getchar()</code>) and either uses it to change aspects of the simulator (if the command is 'r', 'x', 'y', 'z', or 'v') or passes it to the application code to change the state of the application code (if the command is 't', 'm', 'p', or 'w').</p>
+<p><iframe src="https://www.youtube.com/embed/erZ2x05wkJA?si=c0tkYfzrF5I_SSs_" frameborder="0" width="560" height="315" allowfullscreen="allowfullscreen"></iframe></p>
+<p>Second, you can leave the template as-is and use VT100 codes to put the cursor in the right spot when a new value is "outputted". For example, if we want to post a new motor speed we could put the cursor at position (7,4) (assuming the top-left corner of the "Dashboard" box is at [1,1]), and use <code>printf("%3d", motor_speed)</code> to put three integer digits right before the letters "RPM". This will means that you have fewer overall screen updates, but the downside is that you'll need to manage the individual screen coordinates for every item you want printed.</p>
+<h2 id="uses">What can I do with printf/scanf?</h2>
+<p>As cool as that last demonstration was (and it <em>was</em> cool, amiright??), maybe you're still a little underwhelmed at the thought of using <code>printf</code> and <code>getchar</code> to simulate your embedded system. I mean, it feels so <em>different</em> from the real thing, doesn't it? How could it be useful?</p>
+<p>The best answer I can give is that, after "isolating the madness", your application code <em>doesn't care how</em><em> those functions are implemented</em>. In other words, <code>printf</code> and <code>getchar</code> are every bit as real to your code as your GPIO or I2C functions are, even if they don't feel real to you. Even with just <code>printf</code> and <code>getchar</code>, you can fully test your application code to ensure that it works well ahead of any hardware being ready to test it on. Trust me, I found so many bugs in the <a href="https://github.com/nathancharlesjones/simulator-examples">code that I was developing for this article</a> <em>exactly</em> because I was able to run it and test it and see it work (or not work)!</p>
+<p>Furthermore, my simulations don't cease to serve a purpose even after I get my hands on some hardware.</p>
+<ul>
+<li>When I'm ready to port my code to my microcontroller, I can replace <code>printf</code>/<code>getchar</code> with UART_write/_read and use my "simulator" as an interface to my MCU. This would help me prove that my code executes as expected after being compiled for a brand-new target.</li>
+<li>Then, I could <em>add</em> (not replace) my outputs and inputs one at a time. By keeping around my UART_write/_read functions while I add my GPIO and I2C functions, I can watch my MCU as its operating and even control it from my computer.</li>
+<li>Later still, after I'm finished bringing up my embedded project, my "simulator" can make an excellent dashboard for my system, showing me a live picture of what's going on in my microcontroller. (If I swap out my UART functions for BLE or WiFi functions, I could even control my MCU wirelessly!)</li>
+</ul>
+<h2 id="summary">Summary</h2>
+<p><span class="redactor-invisible-space">Simulating your embedded project on your computer is a good thing; so good that Uri Shaked calls it a "superpower". With it, you have an unprecedented ability to test and execute your code, helping you not only develop faster and with fewer errors, but also giving you an excellent tool for interacting with your MCU throughout your development.<br></span></p>
+<p><span class="redactor-invisible-space">The first thing to do if you want to simulate your code is to "isolate the madness": pull out any hardware-dependent code into its own source file. Keep your application code completely unaware of however those functions will be implemented.<br></span></p>
+<p><span class="redactor-invisible-space">The simplest method for simulating your code is just to replace any outputs with calls to <code>printf</code> and any inputs with calls to <span class="redactor-invisible-space"><code>scanf</code></span> or&nbsp;<code>getchar</code>; <code>scanf</code><code>/</code><code>getchar</code> should be put into a thread to allow the rest of your program to run while waiting for user input. (Alternatively, you could implement inputs/outputs with file reads/writes.)<br></span></p>
+<p><span class="redactor-invisible-space">The output from <span class="redactor-invisible-space"><code>printf</code> </span>can be made easier on the eyes with ASCII art, the right format strings, and some VT100 codes that clear the terminal and move the cursor around.<br></span></p>
+<p><span class="redactor-invisible-space">And that's all it takes to make a very capable (and quite slick, IMHO) simulator for your embedded project! Thanks for sticking around this far; I hope you've found something useful here! In the next article, we'll look at a few other simulation techniques that look <em>even cooler</em>, though may potentially require more work to pull off.<br></span></p>
+<h2 id="resources">Resources</h2>
+<ul>
+<li>VT100 codes
+<ul>
+<li><a href="https://medium.com/israeli-tech-radar/terminal-escape-codes-are-awesome-heres-why-c8eb938b1a1c">https://medium.com/israeli-tech-radar/terminal-esc...</a></li>
+<li><a href="https://www.programminglogic.com/playing-with-text-and-animations-on-linux-terminal/">https://www.programminglogic.com/playing-with-text...</a></li>
+<li><a href="https://espterm.github.io/docs/VT100%20escape%20codes.html">https://espterm.github.io/docs/VT100%20escape%20co...</a></li>
+</ul>
+</li>
+</ul>
+<p><a href="https://com0com.sourceforge.net/"></a></p>

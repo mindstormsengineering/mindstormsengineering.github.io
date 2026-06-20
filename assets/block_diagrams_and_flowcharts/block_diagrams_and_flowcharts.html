@@ -1,0 +1,326 @@
+<h1>Write Better Code with Block Diagrams and Flowcharts</h1>
+<p>by Nathan Jones</p>
+<img src="/home/nathancharlesjones/Documents/Work/llc_assets/logo_full.png" width="300">
+<h2>Contents</h2>
+<ul>
+<li><a href="#intro">Introduction</a></li>
+<li><a href="#block">Software block diagrams</a>
+<ul>
+<li><a href="#block-what">What is it?</a></li>
+<li><a href="#block-how">How do I draw one?</a></li>
+<li><a href="#block-implementing">Implementing a block diagram in code</a></li>
+<li><a href="#block-challenge">Ready for a small challenge?</a></li>
+</ul>
+</li>
+<li><a href="#flow">Flowcharts</a>
+<ul>
+<li><a href="#flow-what">What is it?</a></li>
+<li><a href="#flow-how">How do I draw one?</a></li>
+<li><a href="#flow-implementing">Implementing a flowchart in code</a></li>
+<li><a href="#flow-challenge">Ready for a small challenge?</a></li>
+</ul>
+</li>
+<li><a href="#neat-tools">Neat diagramming tools</a>
+<ul>
+<li><a href="#mermaid">Mermaid</a></li>
+<li><a href="#plantuml">PlantUML</a></li>
+<li><a href="#flowgorithm">Flowgorithm</a></li>
+<li><a href="#asciiflow">ASCIIflow</a></li>
+</ul>
+<ul>
+<li><a href="#why-not">Why not use LucidChart, Draw.io, Visio, etc?</a></li>
+</ul>
+</li>
+<li><a href="#conclusion">Conclusion</a></li>
+</ul>
+<h2 id="intro">Introduction</h2>
+<p>Can you imagine trying to assemble a complicated piece of hardware like a 3D printer or a piece of furniture using a set of instructions <em>that had no pictures in it</em>? You open the manual, full of excitement, and are greeted by nothing but a wall of text.</p>
+<p>"Insert screw A into slot B."</p>
+<p>"Attach flange G to partition BB, making sure not to obstruct the opening in wall EE."</p>
+<figure><center><img src="https://images.pexels.com/photos/6595496/pexels-photo-6595496.jpeg"></center>
+<figcaption>His instructions must have had pictures on them.</figcaption>
+</figure>
+<p>What a mess that would be! And yet, we so often think that we can write or read code without such graphical aids. Over the last four years of teaching at the university level, I've wondered about the concept of expertise and about what skills help me to solve problems so much faster or better than my students. In my estimation, a prevailing reason is that <em>I am more ready and able to draw an appropriate sketch of the problem at hand</em> than they are, and it is that sketch which helps me both define the problem and identify any omissions or inconsistencies in my understanding.</p>
+<p>In this article, I want to share with you two such graphical aids, the <strong>software block diagram</strong> and the <strong>flowchart</strong>, that can help you not only write better code but also more quickly understand someone else's code. These diagrams provide an architectural or high-level depiction of your system, which has many benefits in both scenarios.</p>
+<p>When writing code, an architectural view of the system helps you to think through the <em>problem</em> before you dive into any one <em>solution</em><span class="redactor-invisible-space">. Before writing a thousand lines of beautiful code it would probably be good to know that the code you're writing will actually solve the problem at hand! Additionally, by thinking through the general structure of the solution before actually implementing anything, you encourage your design to be more modular. For decades, studies have proven over and over again that modular code is easier to design, write, test, and debug.</span></p>
+<p>When reading code, an architectural view of the system helps you understand how each class, function, and variable fits into the larger picture of the application code. The human brain has only so much working memory and at some point (after 50 LOC, 100 LOC, 1000 LOC, etc) even code with excellently named functions and verbose comments can become inscrutable without a roadmap to keep you oriented to how the code you're reading fits into the larger picture.</p>
+<p>Alright, let's get started!</p>
+<h2 id="block">Software Block Diagrams</h2>
+<h3 id="block-what">What is it?</h3>
+<p>A software block diagram depicts a system using (1) blocks that perform&nbsp;tasks (transforming some kind of input into some kind of output) and (2) links that connect one block's output to another's input. By linking the blocks together, we can compose an entire system.</p>
+<figure><center><img src="https://imgur.com/nAgyigw.jpg"></center></figure>
+<p></p>
+<p>A software block diagram is the same as a <a href="https://en.wikipedia.org/wiki/Functional_block_diagram">functional block diagram</a> and it's similar to a <a href="https://www.lucidchart.com/pages/data-flow-diagram">data flow diagram</a>. Jacob Beningo described this as the "Outside-In" approach to RTOS design in his 2021 Embedded Online Conference talk <a href="https://embeddedonlineconference.com/session/Best_Practices_for_RTOS_Application_Design">"Best Practices for RTOS Application Design"</a> (starting at 10:45).</p>
+<h3 id="block-how">How do I draw one?</h3>
+<p>By way of example, let's pretend that we're trying to build a simple system: a button will be used to cycle through various brightness levels on an LED. Each button press should increase the brightness up to some maximum value and then roll back over to the starting value. PWM waves with different duty cycles will be used to create the different brightness levels on the LED.</p>
+<figure><center><img src="https://imgur.com/BdIidVm.jpg"></center></figure>
+<p>To begin with, we'll draw something that looks like a picture frame to represent our microcontroller. Things inside the frame represent software components and things outside the frame represent hardware components. Inside the border of the frame is where we'll indicate which microcontroller peripherals we'll use to interact with the hardware.</p>
+<p>In our case, our two pieces of hardware are the button and the LED. Both will interact with the GPIO peripheral of the microcontroller.</p>
+<figure><center><img src="https://imgur.com/9sFkp20.jpg"></center></figure>
+<p>At this point, we can iteratively (and recursively) ask, "What happens to the input values in order for them to become the appropriate output values?"</p>
+<p>The button likely bounces so we can reasonably assume that the first part of the system will need to take in the noisy button signal and output a debounced button signal.</p>
+<figure><center><img src="https://imgur.com/tL4W334.jpg"></center></figure>
+<p>Most <a href="https://www.ganssle.com/debouncing-pt2.htm">software debouncing techniques</a> require polling the button GPIO pin at regular intervals to provide an accurate debounced value, so let's also add a "Timer" peripheral to the MCU border and a connection from that to the "debounce" block.</p>
+<figure><center><img src="https://imgur.com/9QeiDWr.jpg"></center></figure>
+<p>A high-to-low transition on the debounced button signal indicates that the button was pressed and should result in a change to the PWM signal's duty cycle. So, next, we'll place a block that takes the debounced button signal as an input and converts it into a value for the duty cycle. For simplicity, we'll say that the LED defaults to off (0% duty cycle) and pressing the button cycles it through 50% and 100% duty cycles before returning to 0%.</p>
+<figure><center><img src="https://imgur.com/Bketrxg.jpg"></center></figure>
+<p>Lastly, we'll need a block to generate the PWM wave based on the value of the duty cycle set by the previous block; we'll also assume that the constant value <code>period</code> was initialized at the top of our program. This block will also need to be aware of the passage of time, so we'll make a connection between it and the "Timer" peripheral. The output of this block goes directly to the GPIO pin controlling the LED.</p>
+<figure><center><img src="https://imgur.com/Qkab1A7.jpg"></center></figure>
+<p>Our block diagram is now complete! Even though this was a simple example, I hope that you can see that we have a much clearer path for implementing our code than we did when we started, when we had only a basic description of the project requirements to go off of.</p>
+<p><em></em>At this point I want to make a few important observations:</p>
+<ul>
+<li>If you have <strong>more than a dozen or so blocks</strong> in your diagram, you're putting too much detail into this top-level drawing. The purpose of this first block diagram should be to provide a single, high-level overview of your system <em><strong>which can fit on a single page of paper</strong></em>. This is critical to being able to understand the system! Anything more and it starts to get difficult to see the forest for the trees.
+<ul>
+<li>For any blocks that you can't envision how to write in your head (such as something really complicated like "Extract critical features from input stream" or "Update UI"), grab a second piece of paper and draw the block diagrams for those blocks there (that's why I said above that we might&nbsp;<em>recursively</em> ask the question "How do these inputs become these outputs?"). Continue drawing nested block diagrams until you can write out blocks like those above that seem relatively easy to write out in code.</li>
+</ul>
+</li>
+<li>Other than what's been defined by the project, <strong>there are no implementation details on this block diagram</strong>. There's nothing in our diagram that&nbsp;<em>requires</em> our block to be something like a main loop task or an interrupt, neither is there anything that <em>requires</em> the debounced button or duty cycle values to be inserted into a queue or written to a global variable. This is intentional since the block diagram is meant to be an architectural view of the system; if implementation details had leaked into this diagram then we might find out later on that our design was overly brittle by being tied to those details.</li>
+</ul>
+<p>In summary, the steps for drawing a software block diagram are:</p>
+<ol>
+<li>Draw the MCU "frame" and any external hardware components.</li>
+<li>Identify the 6-12 high-level operations your system must perform and link them together by connecting the output of each block to the input of one (or more) blocks.</li>
+<li>For any block that doesn't seem simple enough that you can envision in your head what the code might look like, get a second piece of paper and draw another block diagram for that specific block (continuing as needed).</li>
+</ol>
+<h3 id="block-implementing">Implementing a block diagram in code</h3>
+<p>Now that we have an idea of what the system needs to do in order to fulfill the design requirements, we can start to add some implementation details. A key observation for this step is that <strong>blocks perform tasks</strong> and then <strong>communicate their outputs to other blocks by writing a value to memory or to a processor register</strong>.</p>
+<p>Thus, each block represents something the MCU actually <em>does</em>. We can accomplish this in a number of ways, such as:</p>
+<ul>
+<li>making each block a main loop or RTOS task,</li>
+<li>running each block inside an appropriate interrupt,</li>
+<li>making a block a standalone function that gets called by a task or interrupt, or</li>
+<li>assigning a block to a hardware peripheral (to be executed asynchronously to the normal program flow).</li>
+</ul>
+<p>For example, the "debounce button" block could be run inside an RTOS task that polls the button GPIO pin at regular intervals:</p>
+<pre>void taskDebounce(void)
+{
+    // Read button GPIO pin
+    // After 10 successive reads of the same value:
+        // Post new button value
+    // Delay 10 ms
+}
+</pre>
+<p>Or maybe that block is put inside the timer interrupt:</p>
+<pre>// Timer ISR is set to trigger every 10 ms
+void timerISR(void)
+{
+    // Read button GPIO pin
+    // After 10 successive reads of the same value:
+        // Post new button value
+}
+</pre>
+<p>Additionally, we may find in doing this that certain blocks can be combined into the same task or interrupt. The "debounce button" and "mode" blocks may be so closely tied together that it makes more sense to have a single task that reads the button GPIO pin and outputs the current duty cycle value than it does to keep those pieces of code separate.</p>
+<p>Next, each arrow represents some value that another block (i.e. a task or interrupt) reads from. We can also accomplish this in a number of ways, such as:</p>
+<ul>
+<li>writing to and reading from a global variable,</li>
+<li>writing to a local variable via a "setter" function,</li>
+<li>placing a value in a queue,</li>
+<li>setting a flag to alert the consuming task that a new value is ready (and also providing a "getter" function for that task to call when it next runs to retrieve the new variable),</li>
+<li>etc.</li>
+</ul>
+<p>For example, the "duty cycle" value could be a global variable:</p>
+<pre>uint8_t g_dutyCycle = 0;
+void mode(void)
+{
+    // On button press event:
+    if (g_dutyCycle == 0) g_dutyCycle = 50;
+    else if (g_dutyCycle == 50) g_dutyCycle = 100;
+    else g_dutyCycle = 0;
+}
+void PWM(void)
+{
+    // If timer value is less than g_dutyCycle: LED on
+    // Else LED off
+}
+</pre>
+<p>Or, if we wanted to be fancier, we could put it into a queue from which the PWM task could read:</p>
+<pre>void mode(void)
+{
+    // On button press event:
+    if (g_dutyCycle == 0) enqueue(queue_PWM, 50);
+    else if (g_dutyCycle == 50) enqueue(queue_PWM, 100);
+    else enqueue(queue_PWM, 0);
+}
+void PWM(void)
+{
+    static uint8_t dutyCycle = 0;
+    if queueIsNotEmpty(queue_PWM) dutyCycle = dequeue(queue_PWM);    // Get new value
+    // If timer value is less than dutyCycle: LED on                 // Control LED
+    // Else LED off
+}
+</pre>
+<p>Each of these has various design trade-offs, leaving you plenty of options to implement your block diagram in the way you see fit.</p>
+<h3 id="block-challenge">Ready for a small challenge?</h3>
+<p>See if you can modify the block diagram above to accommodate the following scenarios! How would the block diagram change (if at all) if you wanted:</p>
+<ul>
+<li>a long press on the button to cycle through each brightness setting automatically while the button is held down?</li>
+<li>to use a second button to control the PWM frequency?</li>
+<li>the LED to fade up or down when the brightness was changed (as opposed to changing the duty cycle instantaneously)?</li>
+</ul>
+<h2 id="flow">Flowcharts</h2>
+<h3 id="flow-what">What are they?</h3>
+<p>A flowchart depicts the steps in a process using essentially two types of blocks: (1) rectangles (typically) that execute software tasks and (2) diamonds (typically) that evaluate a condition (usually binary) and take one of two or more branches based on the value of the condition. (Technically, the flowchart may also include a "start" and "end" block, which are typically ovals.) The flowcharts we'll look at today are purely sequential, although UML flowcharts (called <a href="https://en.wikipedia.org/wiki/Activity_diagram">"activity diagrams"</a>) include symbols that allow for the representation of multiple threads, which then join back together at some point later on.</p>
+<figure><center><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/LampFlowchart.svg/330px-LampFlowchart.svg.png"></center></figure>
+<p>It's hopefully not a stretch to see that with just those two elements (effectively, statements and branches) a flowchart&nbsp;is able to represent any control flow element (such as conditionals, <code>switch...case</code> statements, <code>for</code> loops, <code>while</code> loops, etc) in any imperative programming language such as C, C++, Java, or Python. In essence, this means that we can use a flowchart to depict any piece of procedural code we might write in those languages, which is all of the code that would appear inside a function. (We obviously can't use flowcharts to create something like classes, but we can clearly use flowcharts to depict how we might write the code <em>inside</em> a class's methods.) This makes them ideal for depicting how each of the blocks in our block diagram (i.e. the tasks in our system) should be implemented.</p>
+<h3 id="flow-how">How do I draw one?</h3>
+<p>By way of example, let's pretend that we're trying to write a simple piece of code. The code will request a password from a user, printing "Success!" if they enter the correct password and "Unsuccessful! :(" if they don't enter the correct password by the 3rd attempt.</p>
+<figure><center><img src="https://imgur.com/eiHwwGy.jpg"></center></figure>
+<p>The best way to create a flowchart is to use a process called <strong></strong><strong>sequential decomposition</strong>, which just means that we start with a high-level description of our function (like in the diagram above) and then continue breaking it down into smaller and smaller pieces until every element in our flowchart can be readily implemented in actual code. (An alternate method would be to work through the flowchart sequentially or chronologically, the same way it would be executed on our microcontroller.)</p>
+<p>Our example function hinges around getting and checking a piece of user input, so let's start by breaking up our mega-task above into that one conditional.</p>
+<figure><center><img src="https://imgur.com/1WDGBJ4.jpg"></center></figure>
+<p>I've separated the <code>Print 'Enter pw:'</code> and <code>Get user input</code> blocks because I <em>think</em> I'm going to loop back around and I won't want to repeat that first block when I do.</p>
+<p>Okay, the "happy path" (when the user enters the correct password) is so easy that it's done already. Let's take a closer look at the "unhappy path". If the user's input <em>doesn't</em><span class="redactor-invisible-space"> match our password, we need to prompt them again. But wait! We need to do something different if this is their <em>third</em> incorrect attempt. Oh yeah, so we need to initialize a variable to keep track of those incorrect attempts and then increment that variable if they do guess incorrectly.<br></span></p>
+<figure><center><img src="https://imgur.com/DNQY6Fn.jpg"></center></figure>
+<p><span class="redactor-invisible-space">If the number of unsuccessful attempts is less than 2, we'll prompt the user again. Otherwise, we'll print the failure message.<br></span></p>
+<figure><center><img src="https://imgur.com/e8WPTy2.jpg"></center></figure>
+<p>And now that I'm thinking about it, I guess we <em>do</em> want to print "Enter pw:" on every attempt (lest the user just be looking at a blinking cursor), so let's combine that block with the one below it. Also, let's print a message to let them know that their entry was incorrect if it was.</p>
+<figure><center><img src="https://imgur.com/7UePG7H.jpg"></center></figure>
+<p>Again, this is a simple example, but I hope you can see that iterating over a flowchart helped us literally <em>see</em> the code as we were designing it, which made it so much easier to make sure each line of our code was in the right spot. Along the way we were able to perform some simple refactorings and visually run through the "unhappy" paths to ensure that our function could properly handle edge cases and erroneous inputs.</p>
+<p>In summary, the steps for drawing a flowchart are:</p>
+<ol>
+<li>Draw a single block which represents the entire task that is to be completed by your flowchart.</li>
+<li>Break up that task into smaller tasks, one at a time, until each flowchart element can be readily implemented in actual code.</li>
+</ol>
+<h3 id="flow-implementing">Implementing a flowchart in code</h3>
+<p>At first pass, you might think, "Shouldn't this be easy? I just match the parts of my flowchart to one of the elements below and write out the resulting code. Done."</p>
+<figure><center><img src="https://imgur.com/hC6dkrC.jpg"></center></figure>
+<p>For flowcharts on the simpler side, you'd be completely correct! May your flowcharts always be so simple.</p>
+<p>However, even our little flowchart above for the password checker throws a wrench in this simple algorithm: although it <em>looks</em> like the main flowchart could be implemented with a <code>for</code> or <code>while</code> loop, we have a branch to the "Success!" message and the end of the flowchart<span class="redactor-invisible-space"> (the "happy path") </span>in the middle of what otherwise looks like a simple loop. There are several ways to solve this problem, each involving different and/or creative uses of the C/C++ language.</p>
+<h4>Solution #1: Use <code>break</code> to jump to the bottom of the loop</h4>
+<pre>uint8_t count = 0;
+char * password = "OpenSesame";
+do
+{
+    char guess[32] = {0};
+    printf("Enter pw: ");
+    scanf("%s", guess);
+    if (strcmp(guess, password) == 0)
+    {
+        printf("Success!\n");
+        break;                              // Breaks out of do...while loop to end
+    }
+    else
+    {
+        count++;
+        printf("Incorrect!\n");
+        if (count &gt; 2)
+        {
+            printf("Unsuccessful! :(\n");
+            break;                          // Breaks out of do...while loop to end
+        }
+    }
+} while !(count &gt; 2);
+</pre>
+<h4>Solution #2a: Use a flag variable (<code>success</code>) to keep track of system status</h4>
+<pre>uint8_t count = 0;
+char * password = "OpenSesame";
+bool success = false;
+while ( (count &lt; 3) &amp;&amp; !success )
+{
+    char guess[32] = {0};
+    printf("Enter pw: ");
+    scanf("%s", guess);
+    if (strcmp(guess, password) == 0) success = true;
+    else
+    {
+        count++;
+        printf("Incorrect!\n");
+    }
+}
+if (success) printf("Success!\n");
+else printf("Unsuccessful! :(\n");
+</pre>
+<h4>Solution #2b: Use a <code>for</code> loop instead of a <code>while</code> loop to keep track of the count variable</h4>
+<pre>char * password = "OpenSesame";
+bool success = false;
+for (uint8_t count = 0; (count &lt; 3) &amp;&amp; !success; count++)
+{
+    char guess[32] = {0};
+    printf("Enter pw: ");
+    scanf("%s", guess);
+    if (strcmp(guess, password) == 0) success = true;
+    else printf("Incorrect!\n");
+}
+if (success) printf("Success!\n");
+else printf("Unsuccessful! :(\n");
+</pre>
+<p>This one doesn't really solve the problem of our flowchart any differently, but it does show the equivalence of <code>for</code> and <code>while</code> loops and also happens to be the most condensed solution we've seen so far!</p>
+<h4>Solution #3: Replace "jump to end" with early function return</h4>
+<pre>char * password = "OpenSesame";
+void checkPassword(void)
+{
+&nbsp;&nbsp;&nbsp; uint8_t count = 0;
+&nbsp;&nbsp;&nbsp; while(1)
+&nbsp;&nbsp;&nbsp; {
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; char guess[32] = {0};
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; printf("Enter pw: ");
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; scanf("%s", guess);
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if (strcmp(guess, password) == 0)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; printf("Success!\n");
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; else
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; printf("Incorrect!\n");
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if (++count &gt; 2)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; printf("Unsuccessful! :(\n");
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }
+&nbsp;&nbsp;&nbsp; }
+}
+checkPassword();
+</pre>
+<p>You can even do weird things like <a href="https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html">intermingle switch...case statements with do..while loops</a>, such as in the infamous "Duff's device"! It turns out, though, that a general solution to this problem is really hard. The fancy name for "flowchart" is "control flow graph" and another term for the executable code that we're trying to turn them into is pieces of "structured programming". There's been lots of interesting research into the problem of turning control flow graphs into pieces of structured programming, some even that suggests that it's <em>not possible</em> to do for <em>all</em> control flow graphs or that's it's not possible without using <code>goto</code>s.</p>
+<h3 id="flow-challenge">Ready for a small challenge?</h3>
+<p>See if you can modify the flowchart above to accommodate the following scenarios! How would the flowchart change if you wanted:</p>
+<ul>
+<li>each incorrect attempt to result in a lengthening delay before the user could re-attempt their password again?</li>
+<li>to provide a "forgot password" feature that asks the user 3 predefined security questions and prints "Success!" if they can correctly answer all on their first attempt?</li>
+</ul>
+<h2 id="neat-tools">Neat tools for creating software block diagrams</h2>
+<h3 id="mermaid">Mermaid</h3>
+<p><a href="https://mermaid.js.org/">Mermaid</a> is a "JavaScript based diagramming and charting tool that renders Markdown-inspired text definitions to create and modify diagrams dynamically." Using their <a href="https://mermaid.live">live editor</a> allows you to instantly see the effect of your text descriptions (below left) on the rendered diagram (below right). Additionally, <a href="https://gist.github.com/ChristopherA/bffddfdf7b1502215e44cec9fb766dfd">GitHub supports the rendering</a><a href="https://gist.github.com/ChristopherA/bffddfdf7b1502215e44cec9fb766dfd"> of Mermaid diagrams</a> in your Markdown files.</p>
+<figure><center><img src="https://mermaid.js.org/assets/Code-Preview-Config.DjJHMydJ.png"></center></figure>
+<p>Mermaid supports many different types of drawings, including <a href="https://mermaid.js.org/syntax/block.html">block diagrams</a> and <a href="https://mermaid.js.org/syntax/flowchart.html">flowcharts</a>. The flowcharts above were created using Mermaid.</p>
+<h3 id="plantuml">PlantUML</h3>
+<p><a href="https://plantuml.com/">PlantUML</a> is another "text-to-graphic" rendering tool that you can use to build all kinds of UML (and non-UML) diagrams, including block diagrams (what they call <a href="https://plantuml.com/component-diagram">"component diagrams"</a>) and flowcharts (called <a href="https://plantuml.com/activity-diagram-beta">"activity diagrams"</a>). Like Mermaid, PlantUML also provides an <a href="https://www.plantuml.com/plantuml/uml/SyfFKj2rKt3CoKnELR1Io4ZDoSa70000">online editor</a>.</p>
+<figure><center><img src="https://imgur.com/FJbvwTk.jpg"></center>
+<figcaption>Example PlantUML block diagram, rendered with the online editor from <a href="https://github.com/fuhrmanator/course-activity-planner/blob/master/ooad/RelativeDatesCourses.puml">this</a> PlantUML description.</figcaption>
+</figure>
+<p>GitHub integration seems <a href="https://stackoverflow.com/questions/32203610/how-to-integrate-uml-diagrams-into-gitlab-or-github">possible, though more difficult</a> than with Mermaid.</p>
+<h3 id="flowgorithm">Flowgorithm</h3>
+<p><a href="http://www.flowgorithm.org/">Flowgorithm</a> is a simple graphical tool for creating flowcharts. That's about all that the software does so the interface is quite simple; adding an element is as easy as right-clicking on an arrow and selecting the type of block to insert in between the flowchart elements that were previously connected by that arrow.</p>
+<figure><center><img src="https://upload.wikimedia.org/wikipedia/commons/4/42/Flowgorithm_99_Bottles_of_Beer.png"></center></figure>
+<p>That being said, the software does have several neat features. The&nbsp;<em>coolest</em> one, in my opinion, is that Flowgorithm will automatically generate code from any flowchart you create for any one of 29 different programming languages, including C++, Bash, Ruby, Swift, Python, and Java.</p>
+<p>Additionally, Flowgorithm has support for Turtle graphics, file IO, and a console (so you can actually run/test your flowcharts as you are writing them). Flowgorithm also provides some basic debugging features in the form of a variable watch window and conditional breakpoints. </p>
+<h3 id="asciiflow">ASCIIflow</h3>
+<p><a href="https://asciiflow.com/#/">ASCIIflow</a> is a <em>very</em> basic drafting tool that lets you draw boxes and arrows and make simple annotations.</p>
+<figure><center><img src="https://64.media.tumblr.com/tumblr_lms8qyq1gp1qzlt3uo1_500.png"></center></figure>
+<p>Making diagrams with this tool isn't exactly easy (and they will definitely be harder than the tools above&nbsp;to edit later), but the really neat thing about this tool is that you can export your drawing into standard ASCII/Unicode characters, meaning that you can <em>embed your drawings directly into your code as a block comment</em>.</p>
+<pre>/***************************************
+      Flowchart for function foo
+             ┌────────────────┐       
+             │NEED A FLOWCHART│       
+             └───────┬────────┘       
+                     │                
+           ┌───┐     │     ┌──┐       
+        ┌──┤YES│◄────┴────►│NO├─┐     
+        │  └───┘           └──┘ │     
+        ▼                       ▼     
+┌─────────────────┐         ┌────────┐
+│TRY asciiflow.com│         │CARRY ON│
+└─────────────────┘         └────────┘
+***************************************/
+void foo(void){...}
+</pre>
+<p>This can help make sure that your drawings stay consistent with any of your code changes, since the two things live in the same file.</p>
+<h3 id="why-not">Why not use LucidChart, Draw.io, Visio, etc?</h3>
+<p>With the exception of ASCIIflow, I'm not a fan of general drafting programs such as those listed in the heading above. My problem (and I completely realize that it's a personal one) is that it's too tempting to make every iteration of my diagrams look pretty if I'm using a general drafting tool and once there are more than a half-dozen elements in my diagram, making sure the diagram is readable and pretty after every alteration can take a not-insignificant amount of time. If my documentation is onerous to edit then I'm not likely to edit it when it changes and the chances of it becoming inconsistent with my code (or worse, dead and forgotten) are much higher. Personally, I prefer to live with drawings that I don't have <em>full</em> control over (since the rendering tools do that for me) in exchange for drawings that are easy to create and edit.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>Diagrams are an important part of writing and reading code well; akin to having diagrams or graphics in a set of complex assembly instructions for a 3D printer or a piece of furniture. If you <em>don't</em> have a diagram to help describe your code as you're writing or reading it, you're doing yourself a disservice!</p>
+<p>When writing code, a <strong>block diagram</strong><span class="redactor-invisible-space"> can help you create a program structure that actually solves the problem at hand (instead of whatever you <em>think</em><span class="redactor-invisible-space"> the problem is). Additionally, by default it encourages a modular design</span>, which will produce code that is easier to design, write, test, and debug. Once drawn, you can determine how to implement your tasks (as main loop/RTOS tasks, interrupts, etc) and the means by which your tasks communicate their output values (through globals, a queue, etc). Lastly, a <strong>flowchart</strong> can help you design each of your tasks before you begin coding. Doing so helps ensure that all of your code is in the right place and can make it easier to see simple refactorings or places where the code needs to better handle the "unhappy path".<br></span></p>
+<p>When reading code, the diagrams can help you understand a codebase better by working in reverse. For each function (or, at least, the main tasks) drawing a <strong>flowchart</strong><span class="redactor-invisible-space"> can help you understand <em>what</em><span class="redactor-invisible-space"> each function is actually trying to do. By seeing the structure of the loops and conditionals, it can be easier to identify the purpose of each chunk of code. Armed with an understanding of what each function does, you can then draw the <strong>block diagram</strong><span class="redactor-invisible-space"> for the system by identifying how and where the tasks are communicating with each other. Armed with those diagrams, you'll have a roadmap for what the code is actually accomplishing and how it's accomplishing it, making it much easier to understand the impact of each individual line of code.<br></span></span></span></p>
+<p><span class="redactor-invisible-space"><span class="redactor-invisible-space"><span class="redactor-invisible-space">If you've stuck around this long, thanks for reading, and I hope I was able to share something useful with you! Are you ready for one last challenge? Identify a piece of code that you're working on currently and make a block diagram and flowcharts for it. Or, if you have those already, take what you've seen today and try to improve your block diagram and/or flowcharts in some small way. Happy hacking!<br></span></span></span></p>

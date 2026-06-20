@@ -1,0 +1,79 @@
+<h1>Project Log: Pixelblaze Christmas Lights</h1>
+<p>by Nathan Jones</p>
+<img src="/home/nathancharlesjones/Documents/Work/llc_assets/logo_full.png" width="300">
+<h1>Contents</h1>
+<ul>
+<li><a href="#intro">Introduction</a></li>
+<li><a href="#pixelblaze">What's Pixelblaze?</a></li>
+<li><a href="#idea">The general idea</a></li>
+<li><a href="#parts">The parts arrive! Along with my first problems...</a></li>
+<li><a href="#weatherproofing">Now, how to weatherproof it?</a></li>
+<li><a href="#hanging">And the hanging part?</a></li>
+<li><a href="#results">Okay, but how does it look?</a></li>
+<li><a href="#closing">Closing thoughts</a></li>
+</ul>
+<h1 id="intro">Introduction</h1>
+<p>It was a festive time of year! The merriest of times!</p>
+<figure><center><img src="https://cpcadvent.wordpress.com/wp-content/uploads/2014/12/most-wonderful-time.png"></center></figure>
+<p>Also, my wife likes holiday decorations and I want to be the kind of Maker and embedded engineer who can whip up decorative and festive electronics projects. So I decided to build us some Christmas lights! Building a set of Christmas lights out of addressable LEDs seemed neat and easy and a classic Maker project; I even have a friend (ElectroMage) who sells an LED controller called Pixelblaze. The only other things I would need would be the LEDs, a power source, and some connectors. How hard could it be?</p>
+<h1 id="pixelblaze">What&rsquo;s Pixelblaze?</h1>
+<p><a href="https://electromage.com/">Pixelblaze</a> is an ESP32-based addressable LED controller made by ElectroMage (a.k.a. Ben Hencke). The firmware running on the ESP32 (written by ElectroMage) makes it exceedingly easy to find or create LED patterns, to sequence those patterns, and to coordinate larger, multi-controller LED installations.</p>
+<figure><center><img src="https://imgur.com/B8PaFqJ.png"></center></figure>
+<p><span class="redactor-invisible-space">I didn&rsquo;t <em>need</em> to use a Pixelblaze controller for this project, of course; controlling a set of addressable LEDs is a very standard hobbyist project and I probably could have found sample code for whatever microcontroller I wanted on the internet or via an LLM of choice. But since my main goal was to get working lights on my house (and to not spend 4+ weeks in development), and also to support my friend, I bought a Pixelblaze. (Update: I&rsquo;ve very happy with my decision! The interface is exactly the kind of thing that I would want from my LED controller and one that I might have convinced myself I could write on my own, only to regretfully realize afterward how much work Ben puts into this project.)</span></p>
+<h1 id="idea">The general idea</h1>
+<p>All you need for a simple Pixelblaze setup is a 5 V power source, a 3- or 4-pin cable (for power, ground, data, and, for some LEDs, clock), and a 5 V-tolerant LED strip.<span class="redactor-invisible-space"><span class="redactor-invisible-space"></span></span></p>
+<figure><center><img src="https://imgur.com/Axyev84.png"></center></figure>
+<p><span class="redactor-invisible-space"><span class="redactor-invisible-space">There are limitations on how many LEDs you can light up before overloading the USB port, though. Given the number of LEDs I wanted to light up (enough to go all the way around my house), I knew I would need a separate power adapter. I had some 13 V power adapters laying around that I wanted to use up, so I figured I&rsquo;d use those. That meant I would need to source 12 V LED strips, not 5 V, and I would also need to find a way to generate 5 V for the Pixelblaze controller.<span class="redactor-invisible-space"></span></span></span></p>
+<figure><center><img src="https://imgur.com/BOGQrIe.png"></center></figure>
+<p><span class="redactor-invisible-space"><span class="redactor-invisible-space"><span class="redactor-invisible-space">My solution was to use a <a href="https://shop.electromage.com/products/no-soldering-led-wiring-adapters?variant=45123644719324">P3 cable</a> (below left) from ElectroMage to connect the power adapter to my Pixelblaze and LED strips. And ElectroMage sells a <a href="https://shop.electromage.com/products/mini-buck-12v-to-5v-dc-dc-converter">tiny 5 V buck converter</a> (only 12 mm x 11 mm!) that I could put &ldquo;inline&rdquo; with the 13 V voltage line for conversion to 5 V.<span class="redactor-invisible-space"></span></span></span></span></p>
+<figure><center><img src="https://imgur.com/DapfAkk.png" height="150"><img src="https://imgur.com/1dywu1I.png" height="150"><img src="https://imgur.com/Csqb8IK.png" height="150"></center></figure>
+<p><span class="redactor-invisible-space"><span class="redactor-invisible-space"><span class="redactor-invisible-space"><span class="redactor-invisible-space">So my setup (only slightly more involved than the basic one), looked like this:<span class="redactor-invisible-space"></span></span></span></span></span></p>
+<figure><center><img src="https://imgur.com/8wsA9Q2.png"></center></figure>
+<p>(The X12 cable came with the Pixelblaze controller and was for the purpose of converting the standard header on the Pixelblaze PCB with whichever type of LEDs we&rsquo;re going to be using.)</p>
+<p>Now I needed to pick out my LED strips. Christmas lights don&rsquo;t need to be particularly dense (LED-wise), and I didn&rsquo;t want to spend $500 on my LED installation, so I eschewed strips like <a href="https://www.adafruit.com/product/2495">this</a> or <a href="https://www.ledsupply.com/led-strips/waterproof-12v-led-strip?srsltid=AfmBOorxatPd4BfYRJcwOvrSIHIjfd3uw1PfM_UFIcFVMVEklxT_zF-v">this</a> (with upwards of 60 LEDs/m) and instead went with <a href="https://www.amazon.com/dp/B0CM991V5J?ref=ppx_yo2ov_dt_b_fed_asin_title">this one</a> I found on Amazon. It might only have about 5 LEDs/m but it&rsquo;s also far cheaper at around 1 USD per&nbsp;m, as opposed to 25 USD per&nbsp;m.</p>
+<figure><center><img src="https://m.media-amazon.com/images/I/71pedTUKwgL._AC_SL1500_.jpg" height="600"></center></figure>
+<p>I <em>did</em> need my lights to be &ldquo;weatherproof&rdquo;, though, since they would be semi-permanently installed in a fully exterior location. Looking at the &ldquo;IP&rdquo; (ingress protection) scale, I would have guessed that I would need an LED strip rated at least IP54-ish. Most of the &ldquo;weatherproof&rdquo; LED strips I found were IP67 or higher (the ones I ended up buying were IP68), which definitely seemed sufficient.</p>
+<figure><center><img src="https://cdn1.bigcommerce.com/server2300/43185/product_images/uploaded_images/ip-rating-chart.png" width="400"></center></figure>
+<p>With my preliminary design complete, I ordered my lights and my Pixelblaze and waited expectantly for them to arrive!<span class="redactor-invisible-space"></span></p>
+<h1 id="parts">The parts arrive! Along with my first problems&hellip;</h1>
+<p>A few days later my parts arrived, and I began assembling my circuit. The barrel plug on my power adapter was a weird size, but I had expected this and was prepared to swap it out with a solderable 2.1mm barrel plug.</p>
+<figure><center><img src="https://imgur.com/jNtbvMs.png"></center></figure>
+<p>And that&rsquo;s when I ran into my first problems.</p>
+<p>To begin with, I realized that I didn&rsquo;t have a spare wire for the 13 V &ldquo;IN +&rdquo; on the buck converter! I could have tapped into the 13 V line when I cut it to add my barrel plug, but that seemed kludgy, even for me, and I wasn&rsquo;t confident I could sufficiently weather-proof it when the time came. Luckily, I realized that the blue wire on the Pixelblaze&rsquo;s 4-pin connector is superfluous, since it goes to a CLK pin that I&rsquo;m not using for my LEDs (which are WS2811s and only need the one DATA pin for controlling). Coincidentally, that blue wire would also be connected to 13 V once I plugged the cables together, so I realized that I could just snip the blue wire where it connected to the Pixelblaze and use it to bring 13 V to the buck converter. I used a spare wire that I cut from the end of my power adapter to make the ground connection. (Thanks, ElectroMage, for keeping those through-holes accessible, even with the white cable connector in place!)</p>
+<figure><center><img src="https://imgur.com/LXPdbTZ.png"></center></figure>
+<p>The second problem was that I didn&rsquo;t realize that the JST SM connectors that are typically used to connect LED strips together (the black connectors in the images above) have housings that mate specifically for the number of pins in the opposing connection. They aren&rsquo;t like plain header pins, which you can offset if you need to. So the 3-pin JST connector on my P3 cable (left cable) <em>wasn&rsquo;t mating</em> with the <strong>4-pin</strong> JST connector that I bought with my Pixelblaze (the one that ends in a white connector on the controller board)!</p>
+<p>I decided to attempt cutting open the housing on one side with my Dremel, so that the larger 4-pin connector would fit (below left; notice that the side nearest my index finger has been cleaved of its wall). I also needed to file down the tab on the 4-pin connector, since it was offset from the tab on the 3-pin connector that grabbed onto it (below right).</p>
+<figure><center><img src="https://imgur.com/V9fV0un.png" height="200"><img src="https://imgur.com/aR40wG4.png" height="200"></center></figure>
+<p>Incredibly, everything fit and mated fine. There was even enough left of the tab on the 4-pin connector for the 3-pin connector to still grab on to!</p>
+<p>I plugged everything in for my first test and &hellip; nothing worked. Well, the Pixelblaze controller started just fine and I was able to connect to it without trouble. It even said it was generating a pattern! But the lights? Nada.</p>
+<p>A quick Google search didn&rsquo;t turn up any useful debugging tips, so I turned to ChatGPT. It also suggested the normal things (Is the voltage at the LEDs in the proper range? Do the LEDs and the controller share a ground?) along with some novel ones that seemed less likely to be the culprit (The LED strip is using an odd timing pattern for communication; the DATA line on the Pixelblaze might not be a high enough voltage to drive the WS2811s in the LED strip). I was starting to think that I was going to need a level shifter when my brain latched on to this suggestion:</p>
+<figure><center><img src="https://imgur.com/sotJE4d.png"></center></figure>
+<p>&ldquo;Yeah, I know there&rsquo;s a directionality to the LED strip. But why would the cable on the Pixelblaze mate with the <em>output</em> of the LED strip?&rdquo;</p>
+<p>Welp, paint me red and slap me silly, that&rsquo;s exactly what was going on! Once I&rsquo;d flipped the LED strip around (and made a test connection with some jumper wires), the LEDs came right on! =D</p>
+<p><iframe src="//www.youtube.com/embed/DmYQbKeFv7k" frameborder="0" width="500" height="281" allowfullscreen="allowfullscreen" sandbox=""></iframe></p>
+<p>The <em>last</em> problem I had was that, as a result of flipping the LED strip around, the 3-pin connectors also were inadvertently flipped horizontally: with the tabs of both connectors facing me, the connector coming from the Pixelblaze was PWR-DATA-GND (below right, bottom to top) but the connector coming from the LED strip was GND-DATA-PWR (below left, top to bottom).</p>
+<figure><center><img src="https://imgur.com/Lftr8A5.png"></center></figure>
+<p>I thought I was maybe going to need some more cable shenanigans, but I decided to simply flip the connectors around (as in the picture above) and mate them with a set of extra-long female header pins. I &ldquo;locked&rdquo; the connectors together with a pair of twist-ties (I <em>knew</em> I kept those twist-ties for a reason!).</p>
+<figure><center><img src="https://imgur.com/rKmZu2F.png"></center></figure>
+<h1 id="weatherproofing">Now, how to weatherproof it?</h1>
+<p>While the LEDs themselves may be IP68, my controller, at the moment, was not. I tried my best to not overthink this part either, and found an empty spice container in my recycling bin that seemed the perfect size to stuff all of my electronics.</p>
+<figure><center><img src="https://imgur.com/dSv33wj.png"></center></figure>
+<p>I drilled holes in the top and bottom large enough to fit my connectors. To improve weather-proofing, I decided I wanted all connectors to sit inside the enclosure, with the LED strip connecting through the lid; I thought this would help the whole apparatus shed any rain water the best. Hot glue was used to seal up around the wires.</p>
+<p>Once it was closed up, I was ready to go!</p>
+<figure><center><img src="https://imgur.com/xbYpG8t.png"></center></figure>
+<p>Hmm, what a <em>spicy</em> little setup I&rsquo;ve got there!</p>
+<p>NOTE: These LED strips also came with stripped fly-wires to insert power between any two LED strips along a chain.</p>
+<figure><center><img src="https://imgur.com/5OM0YRa.png"></center></figure>
+<p>I was pretty sure that those two wires accidentally shorting together had already caused my project to reset once, so I made sure to trim off any exposed wire before I installed my lights.</p>
+<h1 id="hanging">And the hanging part?</h1>
+<p>This part was the jankiest of all! Although there are lots of plans on Thingiverse and Printables for light clips, I wasn&rsquo;t sure which would actually hold on to the eaves on my house. There <em>was</em>, however, a little lip next to the soffit that it seemed a paper clip might hold on to (you can see one in the center of the photo below).</p>
+<figure><center><img src="https://imgur.com/kw25aVQ.png"></center></figure>
+<p>So yes: I hung up my Christmas lights with paper clips.</p>
+<h1 id="results">Okay, but how does it look?</h1>
+<p>BEAUTIFUL. =D</p>
+<p><iframe src="//www.youtube.com/embed/v-sX3YSoLCw" frameborder="0" width="500" height="281" allowfullscreen="allowfullscreen" sandbox=""></iframe><br><br></p>
+<h1 id="closing">Closing thoughts</h1>
+<p>Overall, I&rsquo;m <em>very</em> pleased with the result. The Pixelblaze firmware is great, and I haven&rsquo;t even explored the nearly 300 <a href="https://electromage.com/patterns">user-created patterns</a> nor the <a href="https://electromage.com/docs/language-reference">scripting language</a> that lets me define my own LED patterns. I let myself come up with janky solutions on this project and it helped me get the thing done, not overthink it to death.</p>
+<p>On my next project, I intend to plan out the connectors a little better; I&rsquo;ll do my best to answer questions like &ldquo;What does this connector actually look like?&rdquo; and I&rsquo;ll make sure to include details of the connectors in my block diagrams so I can catch mis-matched connectors early on. I may also move to a 5 V power supply to help simplify the circuit.</p>
+<p>This is a project I can highly recommend for all hobbyists. The electronics are pretty forgiving and the parts are easy to acquire, so the most important skills you&rsquo;d need to complete it are soldering skills, debugging/problem solving skills, and middle-school level prototyping skills (hot glue and paper clips, y&rsquo;all!). But maybe hire a professional to get up on your roof for the installation&hellip;</p>
+<p>If you&rsquo;ve made it this far, thanks for reading, happy hacking, and happy holidays!</p>

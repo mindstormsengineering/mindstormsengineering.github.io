@@ -1,0 +1,419 @@
+<!doctype html>
+<html>
+<head>
+<meta charset='UTF-8'><meta name='viewport' content='width=device-width initial-scale=1'><style type='text/css'>html {overflow-x: initial !important;}</style>
+<style type='text/css'  id="style-base">:root { --bg-color: #ffffff; --text-color: #333333; --select-text-bg-color: #B5D6FC; --select-text-font-color: auto; --monospace: "Lucida Console",Consolas,"Courier",monospace; --title-bar-height: 20px; }
+.mac-os-11 { --title-bar-height: 28px; }
+html { font-size: 14px; background-color: var(--bg-color); color: var(--text-color); font-family: "Helvetica Neue", Helvetica, Arial, "Segoe UI Emoji", "SF Pro", sans-serif; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4, h5 { white-space: pre-wrap; }
+body { margin: 0px; padding: 0px; height: auto; inset: 0px; font-size: 1rem; line-height: 1.42857; overflow-x: hidden; background: inherit; }
+iframe { margin: auto; }
+a.url { word-break: break-all; }
+a:active, a:hover { outline: 0px; }
+.in-text-selection, ::selection { text-shadow: none; background: var(--select-text-bg-color); color: var(--select-text-font-color); }
+#write { margin: 0px auto; height: auto; width: inherit; word-break: normal; overflow-wrap: break-word; position: relative; white-space: normal; overflow-x: visible; padding-top: 36px; }
+#write.first-line-indent p { text-indent: 2em; }
+#write.first-line-indent li p, #write.first-line-indent p *, #write.first-line-indent svg * { text-indent: 0px; }
+#write.first-line-indent li { margin-left: 2em; }
+.for-image #write { padding-left: 8px; padding-right: 8px; }
+body.typora-export { padding-left: 30px; padding-right: 30px; }
+.typora-export .footnote-line, .typora-export li, .typora-export p { white-space: pre-wrap; }
+.typora-export .task-list-item input { pointer-events: none; }
+@media screen and (max-width: 500px) {
+  body.typora-export { padding-left: 0px; padding-right: 0px; }
+  #write { padding-left: 20px; padding-right: 20px; }
+}
+#write li > figure:last-child { margin-bottom: 0.5rem; }
+#write ol, #write ul { position: relative; }
+img { max-width: 100%; height: auto; vertical-align: middle; image-orientation: from-image; }
+button, input, select, textarea { color: inherit; font: inherit; }
+input[type="checkbox"], input[type="radio"] { line-height: normal; padding: 0px; }
+*, ::after, ::before { box-sizing: border-box; }
+#write h1, #write h2, #write h3, #write h4, #write h5, #write h6, #write p, #write pre { width: inherit; position: relative; }
+#write svg h1, #write svg h2, #write svg h3, #write svg h4, #write svg h5, #write svg h6, #write svg p { position: static; }
+svg sub, svg sup { position: static; }
+.nodeLabel p { padding-right: 2px; padding-left: 2px; }
+.typora-export .nodeLabel p { padding-right: 0px; padding-left: 0px; }
+foreignobject { overflow: visible; }
+p { line-height: inherit; }
+h1, h2, h3, h4, h5, h6 { break-after: avoid-page; break-inside: avoid; orphans: 4; }
+p { orphans: 4; }
+li p { orphans: 1; }
+h1 { font-size: 2rem; }
+h2 { font-size: 1.8rem; }
+h3 { font-size: 1.6rem; }
+h4 { font-size: 1.4rem; }
+h5 { font-size: 1.2rem; }
+h6 { font-size: 1rem; }
+.md-math-block, .md-rawblock, h1, h2, h3, h4, h5, h6, p { margin-top: 1rem; margin-bottom: 1rem; }
+.hidden { display: none; }
+.md-blockmeta { color: rgb(204, 204, 204); font-weight: 700; font-style: italic; }
+a { cursor: pointer; }
+sup.md-footnote { padding: 2px 4px; background-color: rgba(238, 238, 238, 0.7); color: rgb(85, 85, 85); border-radius: 4px; cursor: pointer; }
+sup.md-footnote a, sup.md-footnote a:hover { color: inherit; text-transform: inherit; text-decoration: inherit; }
+#write input[type="checkbox"] { cursor: pointer; width: inherit; height: inherit; }
+figure { overflow-x: auto; margin: 1.2em 0px; max-width: calc(100% + 16px); padding: 0px; }
+figure > table { margin: 0px; }
+thead, tr { break-inside: avoid; break-after: auto; }
+thead { display: table-header-group; }
+table { border-collapse: collapse; border-spacing: 0px; width: 100%; overflow: auto; break-inside: auto; text-align: left; }
+table.md-table td { min-width: 32px; }
+.CodeMirror-gutters { border-right: 0px; background-color: inherit; }
+.CodeMirror-linenumber { user-select: none; }
+.CodeMirror { text-align: left; }
+.CodeMirror-placeholder { opacity: 0.3; }
+.CodeMirror pre { padding: 0px 4px; }
+.CodeMirror-lines { padding: 0px; }
+div.hr:focus { cursor: none; }
+#write pre { white-space: pre-wrap; }
+#write.fences-no-line-wrapping pre { white-space: pre; }
+#write pre.ty-contain-cm { white-space: normal; }
+.CodeMirror-gutters { margin-right: 4px; }
+.md-fences { font-size: 0.9rem; display: block; break-inside: avoid; text-align: left; overflow: visible; white-space: pre; background: inherit; position: relative !important; }
+.md-fences-adv-panel { width: 100%; margin-top: 10px; text-align: center; padding-top: 0px; padding-bottom: 8px; overflow-x: auto; }
+#write .md-fences.mock-cm { white-space: pre-wrap; }
+.md-fences.md-fences-with-lineno { padding-left: 0px; }
+#write.fences-no-line-wrapping .md-fences.mock-cm { white-space: pre; overflow-x: auto; }
+.md-fences.mock-cm.md-fences-with-lineno { padding-left: 8px; }
+.CodeMirror-line, twitterwidget { break-inside: avoid; }
+svg { break-inside: avoid; }
+.footnotes { opacity: 0.8; font-size: 0.9rem; margin-top: 1em; margin-bottom: 1em; }
+.footnotes + .footnotes { margin-top: 0px; }
+.md-reset { margin: 0px; padding: 0px; border: 0px; outline: 0px; vertical-align: top; background: 0px 0px; text-decoration: none; text-shadow: none; float: none; position: static; width: auto; height: auto; white-space: nowrap; cursor: inherit; -webkit-tap-highlight-color: transparent; line-height: normal; font-weight: 400; text-align: left; box-sizing: content-box; direction: ltr; }
+li div { padding-top: 0px; }
+blockquote { margin: 1rem 0px; }
+li .mathjax-block, li p { margin: 0.5rem 0px; }
+li blockquote { margin: 1rem 0px; }
+li { margin: 0px; position: relative; }
+blockquote > :last-child { margin-bottom: 0px; }
+blockquote > :first-child, li > :first-child { margin-top: 0px; }
+.footnotes-area { color: rgb(136, 136, 136); margin-top: 0.714rem; padding-bottom: 0.143rem; white-space: normal; }
+#write .footnote-line { white-space: pre-wrap; }
+@media print {
+  body, html { border: 1px solid transparent; height: 99%; break-after: avoid; break-before: avoid; font-variant-ligatures: no-common-ligatures; }
+  #write { margin-top: 0px; border-color: transparent !important; padding-top: 0px !important; padding-bottom: 0px !important; }
+  .typora-export * { -webkit-print-color-adjust: exact; }
+  .typora-export #write { break-after: avoid; }
+  .typora-export #write::after { height: 0px; }
+  .is-mac table { break-inside: avoid; }
+  #write > p:nth-child(1) { margin-top: 0px; }
+  .typora-export-show-outline .typora-export-sidebar { display: none; }
+  figure { overflow-x: visible; }
+}
+.footnote-line { margin-top: 0.714em; font-size: 0.7em; }
+a img, img a { cursor: pointer; }
+pre.md-meta-block { font-size: 0.8rem; min-height: 0.8rem; white-space: pre-wrap; background: rgb(204, 204, 204); display: block; overflow-x: hidden; }
+p > .md-image:only-child:not(.md-img-error) img, p > img:only-child { display: block; margin: auto; }
+#write.first-line-indent p > .md-image:only-child:not(.md-img-error) img { left: -2em; position: relative; }
+p > .md-image:only-child { display: inline-block; width: 100%; }
+#write .MathJax_Display { margin: 0.8em 0px 0px; }
+.md-math-block { width: 100%; }
+.md-math-block:not(:empty)::after { display: none; }
+.MathJax_ref { fill: currentcolor; }
+[contenteditable="true"]:active, [contenteditable="true"]:focus, [contenteditable="false"]:active, [contenteditable="false"]:focus { outline: 0px; box-shadow: none; }
+.md-task-list-item { position: relative; list-style-type: none; }
+.task-list-item.md-task-list-item { padding-left: 0px; }
+.md-task-list-item > input { position: absolute; top: 0px; left: 0px; margin-left: -1.2em; margin-top: calc(1em - 10px); border: none; }
+.math { font-size: 1rem; }
+.md-toc { min-height: 3.58rem; position: relative; font-size: 0.9rem; border-radius: 10px; }
+.md-toc-content { position: relative; margin-left: 0px; }
+.md-toc-content::after, .md-toc::after { display: none; }
+.md-toc-item { display: block; color: rgb(65, 131, 196); }
+.md-toc-item a { text-decoration: none; }
+.md-toc-inner:hover { text-decoration: underline; }
+.md-toc-inner { display: inline-block; cursor: pointer; }
+.md-toc-h1 .md-toc-inner { margin-left: 0px; font-weight: 700; }
+.md-toc-h2 .md-toc-inner { margin-left: 2em; }
+.md-toc-h3 .md-toc-inner { margin-left: 4em; }
+.md-toc-h4 .md-toc-inner { margin-left: 6em; }
+.md-toc-h5 .md-toc-inner { margin-left: 8em; }
+.md-toc-h6 .md-toc-inner { margin-left: 10em; }
+@media screen and (max-width: 48em) {
+  .md-toc-h3 .md-toc-inner { margin-left: 3.5em; }
+  .md-toc-h4 .md-toc-inner { margin-left: 5em; }
+  .md-toc-h5 .md-toc-inner { margin-left: 6.5em; }
+  .md-toc-h6 .md-toc-inner { margin-left: 8em; }
+}
+a.md-toc-inner { font-size: inherit; font-style: inherit; font-weight: inherit; line-height: inherit; }
+.footnote-line a:not(.reversefootnote) { color: inherit; }
+.reversefootnote { font-family: ui-monospace, sans-serif; }
+.md-attr { display: none; }
+.md-fn-count::after { content: "."; }
+code, pre, samp, tt { font-family: var(--monospace); }
+kbd { margin: 0px 0.1em; padding: 0.1em 0.6em; font-size: 0.8em; color: rgb(36, 39, 41); background: rgb(255, 255, 255); border: 1px solid rgb(173, 179, 185); border-radius: 3px; box-shadow: rgba(12, 13, 14, 0.2) 0px 1px 0px, rgb(255, 255, 255) 0px 0px 0px 2px inset; white-space: nowrap; vertical-align: middle; }
+.md-comment { color: rgb(162, 127, 3); opacity: 0.6; font-family: var(--monospace); }
+code { text-align: left; vertical-align: initial; }
+a.md-print-anchor { white-space: pre !important; border-width: initial !important; border-style: none !important; border-color: initial !important; display: inline-block !important; position: absolute !important; width: 1px !important; right: 0px !important; outline: 0px !important; background: 0px 0px !important; text-decoration: initial !important; text-shadow: initial !important; }
+.os-windows.monocolor-emoji .md-emoji { font-family: "Segoe UI Symbol", sans-serif; }
+.md-diagram-panel > svg { max-width: 100%; }
+[lang="flow"] svg, [lang="mermaid"] svg { max-width: 100%; height: auto; }
+[lang="mermaid"] .node text { font-size: 1rem; }
+table tr th { border-bottom: 0px; }
+video { max-width: 100%; display: block; margin: 0px auto; }
+iframe { max-width: 100%; width: 100%; border: none; }
+.highlight td, .highlight tr { border: 0px; }
+mark { background: rgb(255, 255, 0); color: rgb(0, 0, 0); }
+.md-html-inline .md-plain, .md-html-inline strong, mark .md-inline-math, mark strong { color: inherit; }
+.md-expand mark .md-meta { opacity: 0.3 !important; }
+mark .md-meta { color: rgb(0, 0, 0); }
+@media print {
+  .typora-export h1, .typora-export h2, .typora-export h3, .typora-export h4, .typora-export h5, .typora-export h6 { break-inside: avoid; }
+}
+.md-diagram-panel .messageText { stroke: none !important; }
+.md-diagram-panel .start-state { fill: var(--node-fill); }
+.md-diagram-panel .edgeLabel rect { opacity: 1 !important; }
+.md-fences.md-fences-math { font-size: 1em; }
+.md-fences-advanced:not(.md-focus) { padding: 0px; white-space: nowrap; border: 0px; }
+.md-fences-advanced:not(.md-focus) { background: inherit; }
+.mermaid-svg { margin: auto; }
+.typora-export-show-outline .typora-export-content { max-width: 1440px; margin: auto; display: flex; flex-direction: row; }
+.typora-export-sidebar { width: 300px; font-size: 0.8rem; margin-top: 80px; margin-right: 18px; }
+.typora-export-show-outline #write { --webkit-flex: 2; flex: 2 1 0%; }
+.typora-export-sidebar .outline-content { position: fixed; top: 0px; max-height: 100%; overflow: hidden auto; padding-bottom: 30px; padding-top: 60px; width: 300px; }
+@media screen and (max-width: 1024px) {
+  .typora-export-sidebar, .typora-export-sidebar .outline-content { width: 240px; }
+}
+@media screen and (max-width: 800px) {
+  .typora-export-sidebar { display: none; }
+}
+.outline-content li, .outline-content ul { margin-left: 0px; margin-right: 0px; padding-left: 0px; padding-right: 0px; list-style: none; overflow-wrap: anywhere; }
+.outline-content ul { margin-top: 0px; margin-bottom: 0px; }
+.outline-content strong { font-weight: 400; }
+.outline-expander { width: 1rem; height: 1.42857rem; position: relative; display: table-cell; vertical-align: middle; cursor: pointer; padding-left: 4px; }
+.outline-expander::before { content: ""; position: relative; font-family: Ionicons; display: inline-block; font-size: 8px; vertical-align: middle; }
+.outline-item { padding-top: 3px; padding-bottom: 3px; cursor: pointer; }
+.outline-expander:hover::before { content: ""; }
+.outline-h1 > .outline-item { padding-left: 0px; }
+.outline-h2 > .outline-item { padding-left: 1em; }
+.outline-h3 > .outline-item { padding-left: 2em; }
+.outline-h4 > .outline-item { padding-left: 3em; }
+.outline-h5 > .outline-item { padding-left: 4em; }
+.outline-h6 > .outline-item { padding-left: 5em; }
+.outline-label { cursor: pointer; display: table-cell; vertical-align: middle; text-decoration: none; color: inherit; }
+.outline-label:hover { text-decoration: underline; }
+.outline-item:hover { border-color: rgb(245, 245, 245); background-color: var(--item-hover-bg-color); }
+.outline-item:hover { margin-left: -28px; margin-right: -28px; border-left: 28px solid transparent; border-right: 28px solid transparent; }
+.outline-item-single .outline-expander::before, .outline-item-single .outline-expander:hover::before { display: none; }
+.outline-item-open > .outline-item > .outline-expander::before { content: ""; }
+.outline-children { display: none; }
+.info-panel-tab-wrapper { display: none; }
+.outline-item-open > .outline-children { display: block; }
+.typora-export .outline-item { padding-top: 1px; padding-bottom: 1px; }
+.typora-export .outline-item:hover { margin-right: -8px; border-right: 8px solid transparent; }
+.typora-export .outline-expander::before { content: "+"; font-family: inherit; top: -1px; }
+.typora-export .outline-expander:hover::before, .typora-export .outline-item-open > .outline-item > .outline-expander::before { content: "−"; }
+.typora-export-collapse-outline .outline-children { display: none; }
+.typora-export-collapse-outline .outline-item-open > .outline-children, .typora-export-no-collapse-outline .outline-children { display: block; }
+.typora-export-no-collapse-outline .outline-expander::before { content: "" !important; }
+.typora-export-show-outline .outline-item-active > .outline-item .outline-label { font-weight: 700; }
+.md-inline-math-container mjx-container { zoom: 0.95; }
+mjx-container { break-inside: avoid; }
+.md-alert.md-alert-note { border-left-color: rgb(9, 105, 218); }
+.md-alert.md-alert-important { border-left-color: rgb(130, 80, 223); }
+.md-alert.md-alert-warning { border-left-color: rgb(154, 103, 0); }
+.md-alert.md-alert-tip { border-left-color: rgb(31, 136, 61); }
+.md-alert.md-alert-caution { border-left-color: rgb(207, 34, 46); }
+.md-alert { padding: 0px 1em; margin-bottom: 16px; color: inherit; border-left: 0.25em solid rgb(0, 0, 0); }
+.md-alert-text-note { color: rgb(9, 105, 218); }
+.md-alert-text-important { color: rgb(130, 80, 223); }
+.md-alert-text-warning { color: rgb(154, 103, 0); }
+.md-alert-text-tip { color: rgb(31, 136, 61); }
+.md-alert-text-caution { color: rgb(207, 34, 46); }
+.md-alert-text { font-size: 0.9rem; font-weight: 700; }
+.md-alert-text svg { fill: currentcolor; position: relative; top: 0.125em; margin-right: 1ch; overflow: visible; }
+.md-alert-text-container::after { content: attr(data-text); text-transform: capitalize; pointer-events: none; margin-right: 1ch; }
+
+</style>
+<style type='text/css'  id="style-codemirror">.CodeMirror { height: auto; }
+.CodeMirror.cm-s-inner { background: inherit; }
+.CodeMirror-scroll { overflow: auto hidden; z-index: 3; }
+.CodeMirror-gutter-filler, .CodeMirror-scrollbar-filler { background-color: rgb(255, 255, 255); }
+.CodeMirror-gutters { border-right: 1px solid rgb(221, 221, 221); background: inherit; white-space: nowrap; }
+.CodeMirror-linenumber { padding: 0px 3px 0px 5px; text-align: right; color: rgb(153, 153, 153); }
+.cm-s-inner .cm-keyword { color: rgb(119, 0, 136); }
+.cm-s-inner .cm-atom, .cm-s-inner.cm-atom { color: rgb(34, 17, 153); }
+.cm-s-inner .cm-number { color: rgb(17, 102, 68); }
+.cm-s-inner .cm-def { color: rgb(0, 0, 255); }
+.cm-s-inner .cm-variable { color: rgb(0, 0, 0); }
+.cm-s-inner .cm-variable-2 { color: rgb(0, 85, 170); }
+.cm-s-inner .cm-variable-3 { color: rgb(0, 136, 85); }
+.cm-s-inner .cm-string { color: rgb(170, 17, 17); }
+.cm-s-inner .cm-property { color: rgb(0, 0, 0); }
+.cm-s-inner .cm-operator { color: rgb(152, 26, 26); }
+.cm-s-inner .cm-comment, .cm-s-inner.cm-comment { color: rgb(170, 85, 0); }
+.cm-s-inner .cm-string-2 { color: rgb(255, 85, 0); }
+.cm-s-inner .cm-meta { color: rgb(85, 85, 85); }
+.cm-s-inner .cm-qualifier { color: rgb(85, 85, 85); }
+.cm-s-inner .cm-builtin { color: rgb(51, 0, 170); }
+.cm-s-inner .cm-bracket { color: rgb(153, 153, 119); }
+.cm-s-inner .cm-tag { color: rgb(17, 119, 0); }
+.cm-s-inner .cm-attribute { color: rgb(0, 0, 204); }
+.cm-s-inner .cm-header, .cm-s-inner.cm-header { color: rgb(0, 0, 255); }
+.cm-s-inner .cm-quote, .cm-s-inner.cm-quote { color: rgb(0, 153, 0); }
+.cm-s-inner .cm-hr, .cm-s-inner.cm-hr { color: rgb(153, 153, 153); }
+.cm-s-inner .cm-link, .cm-s-inner.cm-link { color: rgb(0, 0, 204); }
+.cm-negative { color: rgb(221, 68, 68); }
+.cm-positive { color: rgb(34, 153, 34); }
+.cm-header, .cm-strong { font-weight: 700; }
+.cm-del { text-decoration: line-through; }
+.cm-em { font-style: italic; }
+.cm-link { text-decoration: underline; }
+.cm-error { color: red; }
+.cm-invalidchar { color: red; }
+.cm-constant { color: rgb(38, 139, 210); }
+.cm-defined { color: rgb(181, 137, 0); }
+div.CodeMirror span.CodeMirror-matchingbracket { color: rgb(0, 255, 0); }
+div.CodeMirror span.CodeMirror-nonmatchingbracket { color: rgb(255, 34, 34); }
+.cm-s-inner .CodeMirror-activeline-background { background: inherit; }
+.CodeMirror { position: relative; overflow: hidden; }
+.CodeMirror-scroll { height: 100%; outline: 0px; position: relative; box-sizing: content-box; background: inherit; }
+.CodeMirror-sizer { position: relative; }
+.CodeMirror-gutter-filler, .CodeMirror-hscrollbar, .CodeMirror-scrollbar-filler, .CodeMirror-vscrollbar { position: absolute; z-index: 6; display: none; outline: 0px; }
+.CodeMirror-vscrollbar { right: 0px; top: 0px; overflow: hidden; }
+.CodeMirror-hscrollbar { bottom: 0px; left: 0px; overflow: auto hidden; }
+.CodeMirror-scrollbar-filler { right: 0px; bottom: 0px; }
+.CodeMirror-gutter-filler { left: 0px; bottom: 0px; }
+.CodeMirror-gutters { position: absolute; left: 0px; top: 0px; padding-bottom: 10px; z-index: 3; overflow-y: hidden; }
+.CodeMirror-gutter { white-space: normal; height: 100%; box-sizing: content-box; padding-bottom: 30px; margin-bottom: -32px; display: inline-block; }
+.CodeMirror-gutter-wrapper { position: absolute; z-index: 4; background: 0px 0px !important; border: none !important; }
+.CodeMirror-gutter-background { position: absolute; top: 0px; bottom: 0px; z-index: 4; }
+.CodeMirror-gutter-elt { position: absolute; cursor: default; z-index: 4; }
+.CodeMirror-lines { cursor: text; }
+.CodeMirror pre { border-radius: 0px; border-width: 0px; background: 0px 0px; font-family: inherit; font-size: inherit; margin: 0px; white-space: pre; overflow-wrap: normal; color: inherit; z-index: 2; position: relative; overflow: visible; }
+.CodeMirror-wrap pre { overflow-wrap: break-word; white-space: pre-wrap; word-break: normal; }
+.CodeMirror-code pre { border-right: 30px solid transparent; width: fit-content; }
+.CodeMirror-wrap .CodeMirror-code pre { border-right: none; width: auto; }
+.CodeMirror-linebackground { position: absolute; inset: 0px; z-index: 0; }
+.CodeMirror-linewidget { position: relative; z-index: 2; overflow: auto; }
+.CodeMirror-wrap .CodeMirror-scroll { overflow-x: hidden; }
+.CodeMirror-measure { position: absolute; width: 100%; height: 0px; overflow: hidden; visibility: hidden; }
+.CodeMirror-measure pre { position: static; }
+.CodeMirror div.CodeMirror-cursor { position: absolute; visibility: hidden; border-right: none; width: 0px; }
+.CodeMirror div.CodeMirror-cursor { visibility: hidden; }
+.CodeMirror-focused div.CodeMirror-cursor { visibility: inherit; }
+.cm-searching { background: rgba(255, 255, 0, 0.4); }
+span.cm-underlined { text-decoration: underline; }
+span.cm-strikethrough { text-decoration: line-through; }
+.cm-tw-syntaxerror { color: rgb(255, 255, 255); background-color: rgb(153, 0, 0); }
+.cm-tw-deleted { text-decoration: line-through; }
+.cm-tw-header5 { font-weight: 700; }
+.cm-tw-listitem:first-child { padding-left: 10px; }
+.cm-tw-box { border-style: solid; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px; border-color: inherit; border-top-width: 0px !important; }
+.cm-tw-underline { text-decoration: underline; }
+@media print {
+  .CodeMirror div.CodeMirror-cursor { visibility: hidden; }
+}
+
+</style>
+<style type='text/css'  id="style-theme_css">/* ============================
+   brand.css — global styling
+   ============================ */
+
+/* ---- Brand tokens ---- */
+:root {
+  --brand-primary:       #046307;  /* Deep emerald green */
+  --brand-bg:            #f8f7f3;  /* Alabaster */
+  --brand-text:          #1e1e1e;  /* Charcoal */
+  --brand-line:          #c9c9c4;  /* Warm gray */
+  --brand-muted-teal:    #2f7f73;  /* Muted teal */
+  --brand-sunset-orange: #c4622d;  /* Deep sunset orange */
+  --brand-bronze:        #b08d57;  /* Bronze */
+  --brand-walnut:        #6b4f3f;  /* Walnut */
+  --brand-light-walnut:  #9c7a5b;  /* Light walnut */
+}
+
+/* ---- Base document ---- */
+#write,
+.typora-export {
+  /* background-color: var(--brand-bg); */
+  color: var(--brand-text);
+  font-family: "IBM Plex Serif", serif;
+  line-height: 1.5;
+}
+
+/* ---- Headings ---- */
+#write h1,
+#write h2,
+#write h3,
+#write h4,
+#write h5,
+#write h6,
+.typora-export h1,
+.typora-export h2,
+.typora-export h3,
+.typora-export h4,
+.typora-export h5,
+.typora-export h6 {
+  font-family: "IBM Plex Mono", monospace;
+  color: var(--brand-primary);
+  letter-spacing: 0.03em;
+}
+
+/* ---- Horizontal rules (---) ---- */
+#write hr,
+.typora-export hr {
+  border: none;
+  height: 1px;
+  background-color: var(--brand-line);
+  margin: 2rem 0;
+}
+
+/* ---- Links ---- */
+#write a,
+.typora-export a {
+  color: var(--brand-primary);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+/* ---- Tables (light touch) ---- */
+#write th,
+.typora-export th {
+  font-family: "IBM Plex Mono", monospace;
+  color: var(--brand-primary);
+  border-bottom: 1px solid var(--brand-line);
+}
+
+#write td,
+.typora-export td {
+  padding: 0.3rem 0.4rem;
+}/* =======================================
+   document.css — generic document styling
+   ======================================= */
+
+@import url("file:////home/nathancharlesjones/.config/Typora/themes/");
+
+/* Apply invoice layout to the whole document
+*/
+#write,
+.typora-export {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+blockquote {
+  font-size: 0.9rem;
+  border-left: 3px solid var(--brand-primary);
+  padding-left: 0.8rem;
+}</style>
+<style type='text/css'  id="style-lp">ol, ul {padding-left: 40px}</style>
+
+<title>Breaking-AES-with-an-Oscilloscope</title>
+</head>
+<body class='typora-export'><div class='typora-export-content'>
+<div id='write'  class=''><h1 id='breaking-aes-with-an-oscilloscope'><span>Breaking AES with an Oscilloscope</span></h1><p><span>Nathan Jones</span></p><div class='md-toc' mdtype='toc'><p class="md-toc-content" role="list"><span role="listitem" class="md-toc-item md-toc-h1" data-ref="n0"><a class="md-toc-inner" href="#breaking-aes-with-an-oscilloscope">Breaking AES with an Oscilloscope</a></span><span role="listitem" class="md-toc-item md-toc-h2" data-ref="n4"><a class="md-toc-inner" href="#introduction">Introduction</a></span><span role="listitem" class="md-toc-item md-toc-h2" data-ref="n10"><a class="md-toc-inner" href="#like-a-screen-door-on-a-submarine">Like a screen door on a submarine</a></span><span role="listitem" class="md-toc-item md-toc-h2" data-ref="n17"><a class="md-toc-inner" href="#whats-differential-power-analysis-dpa">What's "differential power analysis" (DPA)?</a></span><span role="listitem" class="md-toc-item md-toc-h2" data-ref="n31"><a class="md-toc-inner" href="#a-brief-overview-of-aes-encryption">A brief overview of AES encryption</a></span><span role="listitem" class="md-toc-item md-toc-h2" data-ref="n39"><a class="md-toc-inner" href="#conducting-a-dpa-attack">Conducting a DPA attack</a></span><span role="listitem" class="md-toc-item md-toc-h2" data-ref="n52"><a class="md-toc-inner" href="#setting-up-the-attack">Setting up the attack</a></span><span role="listitem" class="md-toc-item md-toc-h2" data-ref="n59"><a class="md-toc-inner" href="#conducting-the-attack">Conducting the attack</a></span><span role="listitem" class="md-toc-item md-toc-h2" data-ref="n69"><a class="md-toc-inner" href="#defending-against-a-dpa-attack">Defending against a DPA attack</a></span><span role="listitem" class="md-toc-item md-toc-h2" data-ref="n77"><a class="md-toc-inner" href="#conclusion">Conclusion</a></span><span role="listitem" class="md-toc-item md-toc-h2" data-ref="n81"><a class="md-toc-inner" href="#resources-and-going-further">Resources and going further</a></span></p></div><h2 id='introduction'><span>Introduction</span></h2><p><span>Network security is a well-studied (albeit constantly evolving) field and the designers of internet-connected electronic devices all (hopefully) know at this point that they need to take network security seriously. But equally important are the threats to a device when an attacker has physical access to it! Think about it: how confident are you that your computer is safe from remote attacks when it&#39;s on your home network? (Probably fairly high.) Compare that to how confident you would be if you physically left your computer in the hands of an attacker for a week.</span></p><figure><center>
+    <img src="/home/nathancharlesjones/Documents/Work/EmbeddedRelated/Breaking-AES-with-an-Oscilloscope/laptop.png"
+         alt="Side channels">
+    <figcaption>She's not getting that back.
+</figcaption>
+</center></figure><p>&nbsp;</p><p><span>The latter is far scarier because in that scenario the attacker can probe signals, modify PCBs, and more, to compromise the device! The field of </span><strong><span>hardware security</span></strong><span> studies these types of attacks and their countermeasures. I&#39;d warrant that they are just as important as network security, though far less understood. In this article, I&#39;m going to seek to remedy that by showing you (one example of) what hardware threat actors are capable of. The more you know, the better you can thwart a would-be hardware attacker in the future!</span></p><p><span>We&#39;re going to attack a fictitious device that&#39;s running AES encryption (specifically, AES128 in ECB mode). We&#39;ll assume that we can send the device some plaintext to be encoded, but that we don&#39;t see the ciphertext it generates. Then, with just an oscilloscope and some math, we&#39;ll be able to extract the private AES key inside that device in only a few minutes!</span></p><h2 id='like-a-screen-door-on-a-submarine'><span>Like a screen door on a submarine</span></h2><p><span>In policing, good detective work relies on the fact that no action comes side-effect free. A picked lock shows scratch marks. An object picked up and placed back down in the exact same location may have fingerprints left on its sides. Dust or dirt where there shouldn&#39;t be (or absent where it is supposed to be) can indicate a person&#39;s presence or absence.</span></p><p><img src=
+"/home/nathancharlesjones/Documents/Work/EmbeddedRelated/Breaking-AES-with-an-Oscilloscope/purrlock-holmes.jpeg" 
+         alt="Purrlock Holmes"
+         width="400px"></p><p><span>Consider that fictitious electronic device, the one that&#39;s doing the AES encryption. In much the same way that every physical action comes with side effects, the actions of that electronic device come with side effects as well. It&#39;s not </span><em><span>just</span></em><span> encrypting a message, its also drawing power and generating heat. It&#39;s executing the encryption over a very specific length of time. It&#39;s generating error messages to specific incorrect inputs. Each of these qualities (power consumption, heat, execution time, and faulty outputs, respectively) represents a way in which an electronic device &quot;leaks&quot; information about what it&#39;s doing and, just like fingerprints and dust, all of these things tell us a little bit about what&#39;s going on inside that electronic device. This leaked information is called a &quot;side-channel&quot; and using it to infer what a device is doing is called a &quot;side-channel attack&quot;.</span></p><figure><center>
+    <img src="/home/nathancharlesjones/Documents/Work/ESS/2025/Intro-to-CW-Nano/sideChannels.png"
+         alt="Side channels">
+    <figcaption>Zhou, Yongbin & Feng, DengGuo. (2005). Side-Channel Attacks: Ten Years After Its Publication and the Impacts on Cryptographic Module Security Testing.. IACR Cryptology ePrint Archive. 2005. 388. https://eprint.iacr.org/2005/388.pdf
+</figcaption>
+</center></figure><p><span>Have you ever forgotten a website login, been told &quot;You&#39;ve entered an incorrect password&quot;, and thought to yourself, &quot;Aha! My username, at least, must be correct.&quot; If so, you&#39;ve successfully conducted a small side-channel attack on that website, by leveraging the fact that the faulty output (&quot;You&#39;ve entered an incorrect password&quot;) leaked information that your username was (likely) correct, otherwise the website would have flagged the username as being incorrect first.</span></p><p><span>With the right tools (and more than a little math), however, we can do more than just </span><em><span>infer</span></em><span> small bits of information about what an electronic device is doing. In some cases, we can actually </span><strong><span>recover the private key on a device performing AES encryption simply by watching how much power it draws with an oscilloscope</span></strong><span>. The attack that we&#39;ll conduct to achieve that is called a </span><strong><span>differential power analysis</span></strong><span> attack. And that, my friends, is about as secure as a screen door on a submarine.</span></p><h2 id='whats-differential-power-analysis-dpa'><span>What&#39;s &quot;differential power analysis&quot; (DPA)?</span></h2><p><span>The &quot;power analysis&quot; in &quot;differential power analysis&quot; comes from the fact that we&#39;re choosing an electronic device&#39;s power consumption as our side-channel. For a basic setup, all we need is a shunt resistor in line with our target device&#39;s V</span><sub><span>cc</span></sub><span> pin and an oscilloscope connected to the bottom node.</span></p><p><img src="/home/nathancharlesjones/Documents/Work/EmbeddedRelated/Breaking-AES-with-an-Oscilloscope/dpaSetup.png"></p><p><span>Filtering capacitors can hide the minuscule power fluctuations we&#39;re trying to measure, so as many of those as can be removed before the target becomes unstable should be removed. In the diagram above, we&#39;re taking a single-ended measurement of the voltage above the microcontroller and assuming that the power supply voltage remains constant, but a slightly more advanced setup would take a differential measurement across the shunt resistor. (NOTE: This is </span><em><span>not</span></em><span> where the &quot;differential&quot; in DPA comes from.)</span></p><p><span>Now, it should not come as a shock that we can use this setup to infer broad things like &quot;the microcontroller is doing a lot of work right now&quot; or &quot;it&#39;s probably in a sleep mode&quot;; higher CPU activity and more things that are &quot;on&quot; in a microcontroller </span><em><span>do</span></em><span> correlate with higher power consumption, exactly because it takes energy to turn on a transistor. In fact, the amount of energy a microcontoller uses at a given moment in time is </span><em><span>directly</span></em><span> and </span><em><span>linearly</span></em><span> correlated with how many transistors in that microcontroller are &quot;on&quot; and this is key for allowing the DPA attack to work. As you can imagine, however, the contribution of one transistor in the overall power trace of a microcontroller is vanishingly small; almost assuredly too small for us to measure even with a $10,000 oscilloscope. And so, we turn to statistics!</span></p><p><img src="/home/nathancharlesjones/Documents/Work/EmbeddedRelated/Breaking-AES-with-an-Oscilloscope/extrapolating.png"></p><p><span>Let&#39;s start with a hypothetical example: pretend that we were trying to use power analysis to determine whether our microcontroller was conducting (1) addition or (2) multiplication at some point during a key operation. In fact, let&#39;s assume that we actually already </span><em><span>know</span></em><span> when its adding and when its multiplying, we&#39;re just trying to use the power traces to confirm this. At the start, our power traces are going to look nearly indistinguishable; small amounts of noise will prevent us from saying, confidently, &quot;This one shows multiplication&quot;, even if we know the exact point in time when that operation was occurring.</span></p><p><img src="/home/nathancharlesjones/Documents/Work/EmbeddedRelated/Breaking-AES-with-an-Oscilloscope/identicalTraces.png"></p><p><span>Since we know which traces correspond to addition and which to multiplication, though, we can group those sets of traces together. We can then cancel out much of the noise within our two sets by perform a point-by-point averaging of each group of traces.</span></p><p><img src="/home/nathancharlesjones/Documents/Work/EmbeddedRelated/Breaking-AES-with-an-Oscilloscope/averageTraces2.png"></p><p><span>As long as our microcontroller is deterministic (it is) and our traces all start at the same point in time relative to the operation in question (which we can engineer with the right trigger), the result will be two representative traces of our microcontroller as it was performing its key operation with the only (small) difference between them being how much power was being drawn while it was doing either addition or multiplication. If it takes more power for this microcontroller to perform multiplication than it does addition, the multiplication traces will show a slightly higher power draw at exactly the point in time when that multiplication occurs, which we can identify by subtracting one average trace from the other. (NOTE: </span><em><span>This</span></em><span> is where the &quot;differential&quot; in DPA comes from.)</span></p><p><img src="/home/nathancharlesjones/Documents/Work/EmbeddedRelated/Breaking-AES-with-an-Oscilloscope/dom.png"></p><p><span>In fact (incredibly, perhaps), this same logic holds if what we want to do is simply differentiate between a set of traces where a </span><em><span>single bit in the microcontroller is a 1 or 0</span></em><span>. The resulting difference may be small but since the microcontroller&#39;s power consumption is directly and linearly correlated to how many bits are 1 we&#39;ll still be able to see it (though we may need a </span><em><span>lot</span></em><span> of traces for the noise level to become sufficiently small after averaging).</span></p><p><span>Let&#39;s briefly discuss how AES encryption works and then we&#39;ll get into the specifics of how to use this information to conduct our DPA attack.</span></p><h2 id='a-brief-overview-of-aes-encryption'><span>A brief overview of AES encryption</span></h2><p><span>AES (&quot;Advanced Encryption Standard&quot;) is a highly-secure symmetric-key algorithm used to encrypt and decrypt sensitive data. According to </span><a href='https://en.wikipedia.org/wiki/Advanced_Encryption_Standard'><span>Wikipedia</span></a><span>, it&#39;s the only publicly available cipher that&#39;s been approved by the US National Security Agency (NSA) for use in cryptographic modules handling top secret information. When everything works as its supposed to, AES provides </span><strong><span>confidentiality</span></strong><span> for a block of data, ensuring that only parties that know the private key are able to decipher the sensitive data. When used in an &quot;authenticated encryption&quot; mode, AES also provides </span><strong><span>integrity</span></strong><span> and </span><strong><span>authenticity</span></strong><span> by detecting when an encrypted message has been tampered with.</span></p><p><span>For AES128, a 16-byte/128-bit private key is used for encryption/decryption. To encrypt a chunk of data, the plaintext (in blocks of 16 bytes) is first XORed with the private key, one byte at a time (i.e. </span><code>pt[0] ^ key[0]</code><span>, </span><code>pt[1] ^ key[1]</code><span>, etc). Then, nine times in a row, the result of that XOR is passed to the functions </span><code>SubBytes</code><span>, </span><code>ShiftRows</code><span>, and </span><code>MixColumns</code><span> and the outputs are XORed with the next round key (determined via a </span><a href='https://www.google.com/url?sa=t&amp;source=web&amp;rct=j&amp;opi=89978449&amp;url=https://en.wikipedia.org/wiki/AES_key_schedule&amp;ved=2ahUKEwjyx46Azv6PAxVd4ckDHZ1dG4kQFnoECCQQAQ&amp;usg=AOvVaw1NvDXTd-fBH0ey_954Wjhc'><span>key schedule</span></a><span>) . On the last round, the function </span><code>MixColumns</code><span> is omitted before the cipher text is generated.</span></p><p><img src="https://privacycanada.net/app/uploads/2019/01/aes-algorithm-diagram.png"></p><p><span>The </span><code>SubBytes</code><span> function does nothing more complicated than convert a byte of input into a different byte of output via a look-up table, often referred as a &quot;substitution box&quot; or &quot;sbox&quot;.</span></p><p><img src="/home/nathancharlesjones/Documents/Work/EmbeddedRelated/Breaking-AES-with-an-Oscilloscope/sbox.png"></p><p><span>The part we care most about is the output of </span><code>SubBytes</code><span> during the first round. Using the inputs </span><code>pt</code><span> (plaintext) and </span><code>key</code><span> (i.e. </span><code>roundkey(0)</code><span>, the private AES key), we can express that output for each byte </span><code>n</code><span> (from 0 to 15) as follows.</span></p><pre class="md-fences md-end-block ty-contain-cm modeLoaded" spellcheck="false" lang="c"><div class="CodeMirror cm-s-inner cm-s-null-scroll CodeMirror-wrap" lang="c"><div style="overflow: hidden; position: relative; width: 3px; height: 0px; top: 7.44922px; left: 4px;"><textarea autocorrect="off" autocapitalize="off" spellcheck="false" tabindex="0" style="position: absolute; bottom: -1em; padding: 0px; width: 1000px; height: 1em; outline: none;"></textarea></div><div class="CodeMirror-scrollbar-filler" cm-not-content="true"></div><div class="CodeMirror-gutter-filler" cm-not-content="true"></div><div class="CodeMirror-scroll" tabindex="-1"><div class="CodeMirror-sizer" style="margin-left: 0px; margin-bottom: 0px; border-right-width: 0px; padding-right: 0px; padding-bottom: 0px;"><div style="position: relative; top: 0px;"><div class="CodeMirror-lines" role="presentation"><div role="presentation" style="position: relative; outline: none;"><div class="CodeMirror-measure"></div><div class="CodeMirror-measure"></div><div style="position: relative; z-index: 1;"></div><div class="CodeMirror-code" role="presentation"><div class="CodeMirror-activeline" style="position: relative;"><div class="CodeMirror-activeline-background CodeMirror-linebackground"></div><div class="CodeMirror-gutter-background CodeMirror-activeline-gutter" style="left: 0px; width: 0px;"></div><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"><span class="cm-variable">SubBytes</span>[<span class="cm-variable">n</span>] <span class="cm-operator">=</span> <span class="cm-variable">sbox</span>[ <span class="cm-variable">pt</span>[<span class="cm-variable">n</span>] <span class="cm-variable">^</span> <span class="cm-variable">key</span>[<span class="cm-variable">n</span>] ]</span></pre></div></div></div></div></div></div><div style="position: absolute; height: 0px; width: 1px; border-bottom: 0px solid transparent; top: 19px;"></div><div class="CodeMirror-gutters" style="display: none; height: 19px;"></div></div></div></pre><h2 id='conducting-a-dpa-attack'><span>Conducting a DPA attack</span></h2><p><span>So, where does that leave us? Regarding our device, we can control the plaintext that goes into the AES algorithm, but then we know nothing about the output. Argh, if only we knew the output of the first XOR block or the result of the first </span><code>SubBytes</code><span> function call! If we did, we would know enough to mathematically determine the key. For instance, if we knew that byte 0 of the input were </span><code>0x34</code><span> and that the output of that first </span><code>SubBytes</code><span> was </span><code>0x18</code><span>, then</span></p><pre class="md-fences md-end-block ty-contain-cm modeLoaded" spellcheck="false" lang="c"><div class="CodeMirror cm-s-inner cm-s-null-scroll CodeMirror-wrap" lang="c"><div style="overflow: hidden; position: relative; width: 3px; height: 0px; top: 7.44922px; left: 4px;"><textarea autocorrect="off" autocapitalize="off" spellcheck="false" tabindex="0" style="position: absolute; bottom: -1em; padding: 0px; width: 1000px; height: 1em; outline: none;"></textarea></div><div class="CodeMirror-scrollbar-filler" cm-not-content="true"></div><div class="CodeMirror-gutter-filler" cm-not-content="true"></div><div class="CodeMirror-scroll" tabindex="-1"><div class="CodeMirror-sizer" style="margin-left: 0px; margin-bottom: 0px; border-right-width: 0px; padding-right: 0px; padding-bottom: 0px;"><div style="position: relative; top: 0px;"><div class="CodeMirror-lines" role="presentation"><div role="presentation" style="position: relative; outline: none;"><div class="CodeMirror-measure"><pre><span>xxxxxxxxxx</span></pre></div><div class="CodeMirror-measure"></div><div style="position: relative; z-index: 1;"></div><div class="CodeMirror-code" role="presentation"><div class="CodeMirror-activeline" style="position: relative;"><div class="CodeMirror-activeline-background CodeMirror-linebackground"></div><div class="CodeMirror-gutter-background CodeMirror-activeline-gutter" style="left: 0px; width: 0px;"></div><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"><span class="cm-number">0x18</span> <span class="cm-operator">=</span> <span class="cm-variable">sbox</span>[ <span class="cm-number">0x34</span> <span class="cm-variable">^</span> <span class="cm-variable">key</span>[<span class="cm-number">0</span>] ]</span></pre></div></div></div></div></div></div><div style="position: absolute; height: 0px; width: 1px; border-bottom: 0px solid transparent; top: 19px;"></div><div class="CodeMirror-gutters" style="display: none; height: 19px;"></div></div></div></pre><p><span>and we could easily show that </span><code>key[0] == 0x00</code><span>.</span></p><p><span>Wait, &quot;if only we knew the value of a byte inside the microcontroller&quot;?! That sounds a lot like the information we can get from a differential power analysis! So, to begin this attack, you&#39;ll record several thousand or so power traces of our electronic device doing AES128 encryption, making sure to vary the input and to store the input values alongside each power trace (that information is very important for later on).</span></p><p><img src="/home/nathancharlesjones/Documents/Work/EmbeddedRelated/Breaking-AES-with-an-Oscilloscope/dpa1.png"></p><p><span>Alright, DPA, do your stuff! Tell us which bits are 1 or 0 so we can get the AES key!</span></p><center><a href="https://imgflip.com/i/a7lczz"><img src="https://i.imgflip.com/a7lczz.jpg" title="made at imgflip.com" width="400"></a></center><p><span>Okay, so DPA doesn&#39;t </span><em><span>strictly</span></em><span> tell us the value of a byte inside the microcontroller, it just tells us if there&#39;s a difference in the power consumption between two sets of traces. We have to first sort our traces into two groups and then DPA will tell us if there&#39;s any difference between them. The last piece of the puzzle, then, is that we&#39;ll take a </span><em><span>guess</span></em><span> at the value of </span><code>key[n]</code><span>, sort the traces based on whether a certain bit in the output of </span><code>SubBytes</code><span> is a 1 or a 0 (which we can calculate, since we know the plaintext), and then use DPA to see if there&#39;s any actual difference between those two sets of traces.</span></p><p><span>In the graphic below, I&#39;ve chosen to sort each trace by the value of bit 0, so </span><code>0x18</code><span> and </span><code>0xFE</code><span> each go into the group where </span><code>bit 0 == 0</code><span> and </span><code>0xFF</code><span> and </span><code>0xD5</code><span> go into the group where </span><code>bit 0 == 1</code><span>. (Interestingly, we don&#39;t even need to incorporate the values of bits[7:1] in our analysis, since just a single bit correlates strongly enough with the power consumption to be all that we need!)</span></p><p><img src="/home/nathancharlesjones/Documents/Work/EmbeddedRelated/Breaking-AES-with-an-Oscilloscope/dpa2.png"></p><p><span>If there isn&#39;t any difference between the average traces, it&#39;s most likely because we&#39;ve guessed </span><code>key[n]</code><span> incorrectly and accidentally sorted the two traces into our two groups completely randomly. But if there </span><em><span>is</span></em><span> a difference, then we can be confident that our key guess was correct!</span></p><p><span>We&#39;ll have to potentially guess all 256 values for </span><code>key[0]</code><span>, and then do all that again 15 more times to get the rest of the AES key. But guessing 4,096 times in total is way better than trying to guess 2</span><sup><span>128</span></sup><span> times!</span></p><h2 id='setting-up-the-attack'><span>Setting up the attack</span></h2><p><span>If you&#39;re using a regular oscilloscope for this attack, you&#39;ll want to ensure that it can sample at 5-20x the clock speed of your target, with a bandwidth probably 5x times higher even than that. You can get away with sampling at the target clock speed if the samples are synchronized to that clock, however.</span></p><p><span>It&#39;s going to help greatly if you can script both your target and your oscilloscope, since we want to take several thousand power traces as quickly as we can. For a more thorough discussion of the subtleties of setting up this hardware, see </span><a href='https://nostarch.com/hardwarehacking'><span>The Hardware Hacking Handbook</span></a><span>.</span></p><p><span>Even easier is to use a ChipWhisperer from NewAE Tech, which has been designed for introductory hardware attacks such as this. In the next section, I&#39;ll demonstrate the DPA attack we&#39;ve just discussed using my ChipWhisperer-Nano.</span></p><p><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQrx-VWWd2nNuiOnWOCIeY3ew9edQVe1U2b7A&amp;s"></p><p><span>This neat little device contains a SAM4S microcontroller and external ADC to substitute for the oscilloscope and also a breakaway target (STM32) to run all of our attacks without needing a complex breadboard setup.</span></p><p><span>But the easiest of all is to use no hardware at all! The folks at NewAE Tech have a passion for teaching people about hardware attacks, so </span><a href='https://github.com/newaetech/chipwhisperer-jupyter/tree/caefc398b8545ddd237a5a7c249d1e601e46d688'><span>their tutorials</span></a><span> include code to generate sample power traces that you can use to proceed with the attack in lieu of an actual target.</span></p><h2 id='conducting-the-attack'><span>Conducting the attack</span></h2><p><span>First, the STM32 on my ChipWhisperer-Nano is programmed to perform AES encryption. Note that the private key is set to the value below.</span></p><p><img src="/home/nathancharlesjones/Documents/Work/EmbeddedRelated/Breaking-AES-with-an-Oscilloscope/key.png"></p><p><span>Next, following the directions in </span><a href='https://github.com/newaetech/chipwhisperer-jupyter/blob/caefc398b8545ddd237a5a7c249d1e601e46d688/courses/sca101/Lab%203_3%20-%20DPA%20on%20Firmware%20Implementation%20of%20AES%20(MAIN).ipynb'><span>Lab 3-3 of SCA101</span></a><span>, we take 2500 traces of the STM32 as it&#39;s performing AES encryption. What do a few of them look like?</span></p><p><img src="/home/nathancharlesjones/Documents/Work/EmbeddedRelated/Breaking-AES-with-an-Oscilloscope/dpaTraces.png"></p><p><span>Uhhh, hopefully DPA can do something with that??</span></p><p><span>Once we have our traces, our DPA attack (in pseudocode) looks like this:</span></p><pre class="md-fences md-end-block ty-contain-cm modeLoaded" spellcheck="false" lang=""><div class="CodeMirror cm-s-inner cm-s-null-scroll CodeMirror-wrap" lang=""><div style="overflow: hidden; position: relative; width: 3px; height: 0px; top: 7.44922px; left: 4px;"><textarea autocorrect="off" autocapitalize="off" spellcheck="false" tabindex="0" style="position: absolute; bottom: -1em; padding: 0px; width: 1000px; height: 1em; outline: none;"></textarea></div><div class="CodeMirror-scrollbar-filler" cm-not-content="true"></div><div class="CodeMirror-gutter-filler" cm-not-content="true"></div><div class="CodeMirror-scroll" tabindex="-1"><div class="CodeMirror-sizer" style="margin-left: 0px; margin-bottom: 0px; border-right-width: 0px; padding-right: 0px; padding-bottom: 0px;"><div style="position: relative; top: 0px;"><div class="CodeMirror-lines" role="presentation"><div role="presentation" style="position: relative; outline: none;"><div class="CodeMirror-measure"><pre><span>xxxxxxxxxx</span></pre></div><div class="CodeMirror-measure"></div><div style="position: relative; z-index: 1;"></div><div class="CodeMirror-code" role="presentation" style=""><div class="CodeMirror-activeline" style="position: relative;"><div class="CodeMirror-activeline-background CodeMirror-linebackground"></div><div class="CodeMirror-gutter-background CodeMirror-activeline-gutter" style="left: 0px; width: 0px;"></div><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;">For each key byte, n [from 0-15]:</span></pre></div><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"> &nbsp;  For each possible key_guess [from 0-255]:</span></pre><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"> &nbsp; &nbsp; &nbsp;  For each trace:</span></pre><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  Calculate sbox[ pt[n] ^ key_guess ]</span></pre><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  Sort the trace into one of two groups based on bit 0 of the result above</span></pre><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"> &nbsp; &nbsp; &nbsp;  Average the two groups of traces and then subtract them</span></pre><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"> &nbsp; &nbsp; &nbsp;  Find and store the maximum value of that trace</span></pre><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"> &nbsp;  Store the best guess for key[n] (which is the guess with the highest difference)</span></pre></div></div></div></div></div><div style="position: absolute; height: 0px; width: 1px; border-bottom: 0px solid transparent; top: 151px;"></div><div class="CodeMirror-gutters" style="display: none; height: 151px;"></div></div></div></pre><p><span>Here&#39;s a video of me conducting this attack with the ChipWhisperer-Nano. After collecting the traces (which took about a minute), it only takes </span><strong><span>about six minutes</span></strong><span> to recover the entire private key!! This is crazy, considering the &quot;strength&quot; of this encryption algorithm (and it would actually have gone </span><em><span>waaay</span></em><span> faster if my computer wasn&#39;t so stinkin&#39; old).</span></p><iframe width="560" height="315" src="https://www.youtube.com/embed/qaEAppkcRWc?si=FX5gS8ROnuKsU-q1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe><p><span>Video link: </span><a href='https://youtu.be/qaEAppkcRWc' target='_blank' class='url'>https://youtu.be/qaEAppkcRWc</a></p><h2 id='defending-against-a-dpa-attack'><span>Defending against a DPA attack</span></h2><p><img src="/home/nathancharlesjones/Documents/Work/EmbeddedRelated/Breaking-AES-with-an-Oscilloscope/notThisDay.jpg" alt="notThisDay"></p><p><span>I&#39;d be remiss not to mention a few countermeasures for DPA attacks, though the short comments that follow only scratch the surface of how these attacks are mitigated in practice.</span></p><p><span>To begin, it might be that a DPA attack isn&#39;t actually something you need to worry about. Consider your threat model (and make one for your device if one doesn&#39;t exist!): what&#39;s the worst that would happen if an attacker recovered the AES key using DPA? If just one device becomes compromised (the one the attacker must have bought or stolen, since they have physical access to it) and all the attacker gets is open access to that device, then possibly no defense is needed.</span></p><p><span>If you conclude that defense </span><em><span>is</span></em><span> needed, though, then you have to do something that will undermine the attacker&#39;s assumptions about how they&#39;re able to conduct their attack.</span></p><p><span>For instance, we assumed in this article that the code performing the </span><code>sbox</code><span> lookup occurred at the </span><em><span>exact</span></em><span> same place in each of our power traces. If they hadn&#39;t, then averaging and subtracting traces wouldn&#39;t have shown us anything because the small peaks in our power traces that corresponded to the output of the </span><code>sbox</code><span> lookup would have shown up at different spots in each trace. This may actually happen accidentally if, for instance, an ISR were to fire between the attacker&#39;s trigger to start their oscilloscope and the actual AES encryption. We can make this happen intentionally, also, by </span><strong><span>inserting random delays into our AES code</span></strong><span>. Just double-check that your compiler doesn&#39;t optimize them out!</span></p><p><span>We also assumed in this article that the microcontroller&#39;s power consumption was correlated with the bits in the AES encryption. This always true, strictly speaking, but the strength of the correlation decreases with additional noise in the system. If the microcontroller has </span><strong><span>multiple hardware peripherals or multiple CPU cores running at the same time</span></strong><span> as the encryption, this will add randomness to the power trace that will complicate a DPA attack.</span></p><p><span>Lastly, we could </span><strong><span>use an AES implementation that is &quot;side-channel resistant&quot;</span></strong><span>, which would employ a more complicated version of AES that leaks less information through a power trace.</span></p><h2 id='conclusion'><span>Conclusion</span></h2><p><span>All electronic devices leak information about their internal operations via things like power consumption, timing, faulty outputs, etc; these are called &quot;side channels&quot;. In some cases, this information is sufficient to compromise something important, like a private AES key. These are called &quot;side-channel attacks.&quot;</span></p><p><span>One such attack on AES is based on a &quot;differential power analysis&quot;, in which we use the slight difference between thousands of power traces of a device while its conducting AES encryption to determine the value of the private key. With the right tools, this process can take mere minutes.</span></p><p><span>Defending against a DPA attack requires updating one&#39;s threat model and, if needed, thwarting an attacker&#39;s ability to extract side-channel information from a power trace. The simplest defense is to insert a random delay during the AES operation to prevent the information being leaked (the output of the </span><code>sbox</code><span> in the first round, in this case) from occurring in the same temporal location each time a block of text is encrypted. More complex strategies include adding noise to the microcontroller&#39;s power consumption (by running other peripherals or CPU cores will the sensitive operation is occurring) or using a side-channel resistant version of AES.</span></p><h2 id='resources-and-going-further'><span>Resources and going further</span></h2><p><span>Much of the material in this article was developed by reading </span><a href='https://nostarch.com/hardwarehacking'><span>The Hardware Hacking Handbook</span></a><span>. I highly recommend it!</span></p><p><img src="/home/nathancharlesjones/Documents/Work/EmbeddedRelated/Breaking-AES-with-an-Oscilloscope/hwhhb.png"></p><p><span>You can hear the authors of that book on the </span><a href='https://embedded.fm/'><span>Embedded.fm podcast</span></a><span> in the following episodes:</span></p><ul><li><p><a href='https://embedded.fm/episodes/286?rq=colin'><span>Ep. 286: &quot;Twenty Cans of Gas&quot; (Colin O&#39;Flynn)</span></a></p></li><li><p><a href='https://embedded.fm/episodes/431?rq=woudenberg'><span>Ep. 431: &quot;Becoming More of a Smurf&quot; (Jasper van Woudenberg)</span></a></p></li></ul><p>&nbsp;</p></div></div>
+</body>
+</html>
