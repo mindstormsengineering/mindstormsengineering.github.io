@@ -14,7 +14,7 @@ excerpt: >
 
 *Originally published on [Maker.io (DigiKey)](https://www.digikey.com/en/maker/blogs/2025/all-your-bytes-are-belong-to-us).*
 
-![Hardware attack spectrum from passive reconnaissance to IC modification]({{ '/assets/all_your_bits/spectrum.png' | relative_url }})
+![Hardware attack spectrum from passive reconnaissance to IC modification]({{ '/assets/images/spectrum.png' | relative_url }})
 
 Network security gets most of the attention, but every electronic device that someone can physically touch is also susceptible to hardware attacks — including devices with no wireless radios at all. This article surveys what those attacks look like, organized into six ascending levels of cost, skill, and invasiveness.
 
