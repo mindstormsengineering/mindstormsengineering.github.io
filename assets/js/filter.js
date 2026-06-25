@@ -4,6 +4,7 @@
 
   let activeType    = 'all';
   let activeSubject = 'all';
+  let activeVenue   = 'all';
   let sortOrder     = 'newest';   // 'newest' | 'oldest'
 
   const grid       = document.getElementById('works-grid');
@@ -21,11 +22,13 @@
     cards.forEach(function (card) {
       const cardType     = card.dataset.type || 'article';
       const cardSubjects = (card.dataset.subjects || '').split(',').filter(Boolean);
+      const cardVenue    = card.dataset.venue || '';
 
       const typeMatch    = activeType    === 'all' || cardType === activeType;
       const subjectMatch = activeSubject === 'all' || cardSubjects.includes(activeSubject);
+      const venueMatch   = activeVenue   === 'all' || cardVenue === activeVenue;
 
-      const show = typeMatch && subjectMatch;
+      const show = typeMatch && subjectMatch && venueMatch;
       card.style.display = show ? '' : 'none';
       if (show) visible++;
     });
@@ -42,7 +45,7 @@
     // Update status
     if (statusEl) {
       const total = cards.length;
-      if (activeType === 'all' && activeSubject === 'all') {
+      if (activeType === 'all' && activeSubject === 'all' && activeVenue === 'all') {
         statusEl.textContent = total + ' work' + (total !== 1 ? 's' : '');
       } else {
         statusEl.textContent = 'Showing ' + visible + ' of ' + total;
@@ -67,6 +70,7 @@
 
       if (filterGroup === 'type')    activeType    = value;
       if (filterGroup === 'subject') activeSubject = value;
+      if (filterGroup === 'venue')   activeVenue   = value;
 
       applyFilters();
     });
@@ -108,12 +112,18 @@
       var sbtn = document.querySelector('.filter-btn[data-filter="subject"][data-value="' + subject + '"]');
       if (sbtn) sbtn.click();
     }
+    const venue = params.get('venue');
+    if (venue) {
+      var vbtn = document.querySelector('.filter-btn[data-filter="venue"][data-value="' + venue + '"]');
+      if (vbtn) vbtn.click();
+    }
   }
 
   // ── Reset ──────────────────────────────────────────────────
   window.resetFilters = function () {
     activeType    = 'all';
     activeSubject = 'all';
+    activeVenue   = 'all';
     document.querySelectorAll('.filter-btn').forEach(function (b) {
       b.classList.remove('active');
       if (b.dataset.value === 'all') b.classList.add('active');

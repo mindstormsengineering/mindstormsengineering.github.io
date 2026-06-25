@@ -6,7 +6,8 @@ type: talk
 subjects:
   - firmware
   - tooling
-  - education
+  - debugging
+venue: Hackaday Supercon
 excerpt: >
   Slides from Hackaday Supercon 2025: a survey of practical techniques for running
   embedded firmware on a desktop computer, from simple printf/scanf stubs all the
@@ -18,6 +19,8 @@ documents:
 ---
 
 *Talk given at [Hackaday Supercon 2025](https://hackaday.io/superconference/), November 2025.*
+
+![]({{ '/assets/supercon25_simulating_your_embedded_system/notes.png' | relative_url }})
 
 Simulation is one of those topics where the words sound straightforward but the practical gap between "this is possible" and "here's how to actually do it" is surprisingly wide. I gave this talk at Supercon to close that gap — not assuming a big simulator budget or a week to learn a new tool, but starting from the realistic premise that you have a few hours and want something working right now.
 
@@ -45,7 +48,7 @@ For the final section, I covered two approaches to adding a graphical front end 
 
 If your simulation needs to communicate with another process — say, a desktop GUI talking to an embedded firmware build over a virtual serial port — tools like `socat` or `com2com` can create virtual port pairs without any special hardware.
 
-The written version of this material is a two-part series on EmbeddedRelated, with considerably more depth on each technique:
+**Additional Resources**
 
-- [Part 1: printf/scanf simulation →](https://www.embeddedrelated.com/showarticle/1695.php)
-- [Part 2: Virtual hardware, GUIs, and IPC →](https://www.embeddedrelated.com/showarticle/1697.php)
+- [Simulating Your Embedded Project on Your Computer (Part 1)]({% post_url 2024-10-02-simulating-your-embedded-project-part-1 %}) — printf/scanf simulation in depth: the written companion to this talk
+- [Simulating Your Embedded Project on Your Computer (Part 2)]({% post_url 2024-11-04-simulating-your-embedded-project-part-2 %}) — virtual hardware simulators, PyQt GUIs, and inter-process communication

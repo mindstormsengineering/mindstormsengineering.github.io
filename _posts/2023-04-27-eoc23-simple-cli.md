@@ -6,7 +6,7 @@ type: talk
 subjects:
   - firmware
   - tooling
-  - education
+venue: Embedded Online Conference
 excerpt: >
   Slides from the Embedded Online Conference 2023: how to add a lightweight
   command-line interface to an embedded system over UART, from parsing input to
@@ -18,6 +18,8 @@ documents:
 ---
 
 *Talk given at the [Embedded Online Conference 2023](https://embeddedonlineconference.com/session/Building_a_Simple_Command_Line_Interface), April 2023.*
+
+{% include youtube.html id="fsJfL98y0Rg" %}
 
 A command-line interface over UART is one of the most useful things you can add to an embedded system and one of the least talked-about. It turns a device that communicates entirely through LEDs and log output into something you can actually interrogate: ask it its current state, change a parameter, trigger a test routine. It's indispensable during development and surprisingly useful in production.
 

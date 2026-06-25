@@ -5,7 +5,8 @@ date: 2025-06-02
 type: article
 subjects:
   - firmware
-  - education
+  - debugging
+venue: DigiKey
 excerpt: >
   The case for printf debugging as a complement to single-step debugging, not an
   inferior substitute — and the class of problems where it's actually the better

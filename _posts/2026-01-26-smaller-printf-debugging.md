@@ -5,7 +5,8 @@ date: 2026-01-26
 type: article
 subjects:
   - firmware
-  - education
+  - debugging
+venue: DigiKey
 excerpt: >
   Printf adds over 4 kB of flash just for a single call. This article benchmarks
   a range of techniques for shrinking that footprint, from compiler flags already

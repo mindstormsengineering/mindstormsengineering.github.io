@@ -4,7 +4,8 @@ title: "What Does It Mean to Be \"Turing Complete\"?"
 date: 2023-10-16
 type: article
 subjects:
-  - education
+  - teaching
+venue: EmbeddedRelated
 excerpt: >
   A tour through Alan Turing's 1936 thought experiments — what a "Turing
   machine" is, why it matters, and what it actually means when a programming

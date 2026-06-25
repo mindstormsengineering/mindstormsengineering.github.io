@@ -5,7 +5,7 @@ date: 2025-10-08
 type: article
 subjects:
   - firmware
-  - education
+venue: DigiKey
 excerpt: >
   A Python function for parsing GCC dependency files becomes a case study in
   what separates "barely working" code from simple code — and why simplicity is

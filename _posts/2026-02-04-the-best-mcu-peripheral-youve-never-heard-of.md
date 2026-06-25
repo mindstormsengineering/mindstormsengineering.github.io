@@ -5,7 +5,7 @@ date: 2026-02-04
 type: article
 subjects:
   - hardware
-  - education
+venue: DigiKey
 excerpt: >
   Microchip's Configurable Logic Block gives you programmable digital logic
   inside your microcontroller — fast enough for hardware-speed tasks, flexible

@@ -6,7 +6,7 @@ type: talk
 subjects:
   - security
   - hardware
-  - education
+venue: JawnCon
 excerpt: >
   Slides and recording from JawnCon 0x2: a survey of hardware attack techniques
   organized as a spectrum from cheap and easy reconnaissance all the way to focused
@@ -31,11 +31,11 @@ Every electronic device that someone can physically touch is susceptible to hard
 
 3. **PCB modification** — cutting traces, rerouting signals, replacing components. Requires a soldering iron and some patience, but nothing exotic. Common targets include bypass capacitors near voltage regulators (relevant to fault injection) and pull-up/pull-down resistors that control boot mode selection.
 
-4. **Side-channel attacks** — extracting secrets from timing, power consumption, or electromagnetic emissions without physically modifying the device. The talk demonstrates a differential power analysis (DPA) attack on AES using the ChipWhisperer Nano: capture a few thousand power traces during encryption, partition them by a bit of a hypothesized key byte, average each partition and subtract — a correlation spike appears at the moment the correct key hypothesis matches the actual intermediate computation. Repeat for each of the 256 key byte candidates and all 16 bytes of the key.
+4. **Side-channel attacks** — extracting secrets from timing, power consumption, or electromagnetic emissions without physically modifying the device. The talk demonstrates a differential power analysis (DPA) attack on AES using the ChipWhisperer Nano: capture a few thousand power traces during encryption, partition them by a bit of a hypothesized key byte, average each partition and subtract — a correlation spike appears at the moment the correct key hypothesis matches the actual intermediate computation. Repeat for each of the 256 key byte candidates and then all 16 bytes of the key.
 
 5. **Fault injection** — forcing computational errors by briefly glitching the supply voltage or using an electromagnetic pulse to cause a targeted instruction to fail or be skipped. The talk shows how a well-timed voltage glitch can cause a password comparison to pass without knowing the password.
 
-6. **IC decapping and FIB editing** — chemically or mechanically removing the chip package to expose the die, then using a focused ion beam to cut or deposit conductors. This requires a well-equipped lab and significant expense, but it has been used against production silicon to recover keys and bypass security fuses.
+6. **IC decapping and FIB editing** — chemically or mechanically removing the chip package to expose the die, then using a focused ion beam (FIB) to cut or deposit conductors. This requires a well-equipped lab and significant expense, but it has been used against production silicon to recover keys and bypass security fuses.
 
 **Countermeasures**
 

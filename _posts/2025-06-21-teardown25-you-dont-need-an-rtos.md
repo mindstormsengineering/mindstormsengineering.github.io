@@ -6,7 +6,7 @@ type: talk
 subjects:
   - firmware
   - architecture
-  - education
+venue: Crowd Supply Teardown
 excerpt: >
   Slides and recording from Teardown Portland 2025: a data-driven case that the
   super loop has a much bigger place in multitasking firmware than we give it credit
@@ -21,30 +21,27 @@ documents:
 
 {% include youtube.html id="I4VRN5M1k4Y" %}
 
-I've been developing this argument across a blog series for a while, but Teardown 2025 was my first chance to make the full case in front of a live audience — and I'll admit I was more than a little nervous stepping up to that stage.
+The premise: preemptive RTOSes are the default assumption whenever embedded firmware needs to do more than one thing at a time, but that default rarely gets examined. The super loop gets dismissed as only appropriate for simple programs, while the RTOS gets adopted before anyone has asked whether it's actually needed. This talk makes the case, with math, that the super loop is underrated.
 
-The premise is simple: preemptive RTOSes are the default assumption whenever embedded firmware needs to do more than one thing, but that default is rarely examined. The super loop gets shoved to the side as if it's only appropriate for blinky demos. I wanted to challenge that.
+**What you give up with a preemptive RTOS**
 
-**Setting the stage: what schedulers actually do**
+Preemptive scheduling introduces a category of bugs that simply don't exist in cooperative designs: data races, priority inversion, and deadlocks. Shared state that looks fine in a single-threaded context becomes a source of non-deterministic failures as soon as a higher-priority task can preempt at any instruction boundary. Each task also needs its own stack, sized for its worst-case call depth — which is often a guess. These are solvable problems, but they're real ones that require ongoing care.
 
-Any time your device has tasks — things triggered by events, timers, or sensor reads — you have a scheduling problem. The question isn't whether you need a scheduler; it's which one. A preemptive RTOS is one answer. A carefully designed super loop is another, and it's underrated.
+**Schedulability analysis**
 
-**What we give up with a preemptive RTOS**
+The more interesting question is whether a super loop can actually meet timing requirements that you'd otherwise reach for an RTOS for. The answer comes from response time analysis. For either scheduler, how long it takes for a given task to run is a function of, primarily, how long every higher priority task in the system runs (including interrupts). Tasks in a cooperative scheduler also has to account for any long running, lower-priority task but, on the other hand, they also don't need to worry about being preempted by the scheduler if a higher-priority task becomes ready to run. The surprising conclusion, proved mathematically, is that there is *no equivalence* between the two schedulers. Sometimes the RTOS is better, sometimes the cooperative scheduler is, and sometimes neither is the right answer.
 
-This was the part I wanted to spend the most time on, because I think engineers underestimate the costs. Preemptive scheduling introduces genuine complexity: priority inversion, deadlocks, data races, stack sizing for each task, and ISR-to-task synchronization primitives. These are solvable problems, but they're real problems. They require careful design, good tooling, and ongoing vigilance. None of that is free.
+The talk works through a concrete example on the slides — a set of tasks with known periods and worst-case execution times — showing how to compute whether the task set is schedulable. The key result: with deliberate placement of cooperative yield points, a super loop can satisfy the same response time constraints as a preemptive scheduler for a wide class of real workloads. The scheduler isn't magic; it's math, and that math applies equally to cooperative designs.
 
-**Response time analysis**
+**The conclusion**
 
-The part I think surprises people most is the formal analysis. Using basic schedulability theory, you can calculate whether a set of tasks with known periods and worst-case execution times will meet their deadlines — and the super loop, with a little care in structuring task release points, can meet the same deadlines as a preemptive scheduler for a wide class of real workloads. I walked through a worked example showing this on the whiteboard.
+An RTOS earns its complexity when you have hard real-time requirements that genuinely can't be met cooperatively. Until then, the super loop is often the right tool: simpler to reason about, easier to analyze, and free of an entire class of concurrency bugs.
 
-The key insight: for tasks without tight jitter requirements, the super loop's cooperative yield points can be placed deliberately to guarantee response times. The scheduler isn't magic; it's math. And that math applies equally well to a cooperative design.
+**Additional Resources**
 
-**The case for keeping it simple**
-
-My conclusion wasn't "never use an RTOS." It was: understand what you're getting and what you're giving up, and don't reach for the more complex tool by default. For a lot of firmware — including a surprising amount of what I've seen in production — the super loop is the right answer. The RTOS earns its complexity when you have hard real-time constraints that a cooperative design genuinely can't meet. Until then, keep it simple.
-
-The audience had great questions afterward, including one about PID loops and jitter — which is exactly the right example of where you might actually need tighter scheduling guarantees. That's the kind of nuance I hope the talk opened up.
-
-If you prefer reading to watching, this talk is the live version of my four-part EmbeddedRelated series: [Part 1](https://www.embeddedrelated.com/showarticle/1636.php), [Part 2](https://www.embeddedrelated.com/showarticle/1652.php), [Part 3](https://www.embeddedrelated.com/showarticle/1653.php), [Part 4](https://www.embeddedrelated.com/showarticle/1662.php). The articles cover the same material in considerably more depth.
+- [You Don't Need an RTOS (Part 1)]({% post_url 2024-04-11-you-dont-need-an-rtos-part-1 %}) — schedulability analysis, WCET measurement, and when the superloop suffices
+- [You Don't Need an RTOS (Part 2)]({% post_url 2024-05-07-you-dont-need-an-rtos-part-2 %}) — the Superduperloop: priorities, ISRs, and finite state machines
+- [You Don't Need an RTOS (Part 3)]({% post_url 2024-06-03-you-dont-need-an-rtos-part-3 %}) — adding IPC primitives: thread flags, semaphores, and event flags
+- [You Don't Need an RTOS (Part 4)]({% post_url 2024-07-02-you-dont-need-an-rtos-part-4 %}) — mailboxes, queues, the dispatch queue, and when an RTOS is finally justified
 
 [Session page →](https://www.crowdsupply.com/teardown/portland-2025/long-talk/you-dont-need-an-rtos)

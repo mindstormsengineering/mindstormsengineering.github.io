@@ -210,6 +210,17 @@ time { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted
     radial-gradient(ellipse 70% 60% at 70% 50%, rgba(4,99,7,0.06), transparent),
     radial-gradient(ellipse 50% 40% at 20% 80%, rgba(47,127,115,0.04), transparent);
   pointer-events: none;
+  z-index: 1;
+}
+
+#turtle-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.45;
 }
 
 .hero-inner {
@@ -217,6 +228,8 @@ time { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted
   margin: 0 auto;
   width: 100%;
   max-width: 680px;
+  position: relative;
+  z-index: 2;
 }
 
 .hero-eyebrow {
@@ -248,58 +261,6 @@ time { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted
 
 .hero-cta { display: flex; gap: 1rem; flex-wrap: wrap; }
 
-/* Circuit art — pure CSS decoration */
-.hero-diagram {
-  position: absolute;
-  right: 5%;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 340px;
-  height: 340px;
-  opacity: 0.18;
-  pointer-events: none;
-}
-@media (max-width: 900px) { .hero-diagram { display: none; } }
-
-.circuit-art { position: relative; width: 100%; height: 100%; }
-
-.ca-chip {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%,-50%);
-  width: 90px; height: 70px;
-  border: 2px solid var(--amber);
-}
-.ca-trace {
-  position: absolute;
-  background: var(--amber);
-}
-.ca-trace-h { height: 2px; }
-.ca-trace-v { width: 2px; }
-
-.ca-t1 { width: 80px; top: 50%; left: 10%; margin-top: -1px; }
-.ca-t2 { height: 60px; left: 50%; top: 10%; margin-left: -1px; }
-.ca-t3 { width: 60px; top: 65%; right: 10%; margin-top: -1px; }
-
-.ca-via {
-  position: absolute;
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  border: 2px solid var(--amber);
-  background: var(--bg);
-}
-.ca-v1 { left: 15%; top: 48%; }
-.ca-v2 { left: 48%; top: 12%; }
-.ca-v3 { right: 14%; top: 63%; }
-
-.ca-node {
-  position: absolute;
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--green);
-}
-.ca-n1 { left: 20%; top: 25%; }
-.ca-n2 { right: 20%; top: 72%; }
 
 /* ── About ────────────────────────────────────────────────────── */
 .section-about { background: var(--bg-raised); }
@@ -408,6 +369,11 @@ time { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted
   border: 1px solid var(--border);
   border-radius: 2px;
   padding: 0.25em 0.75em;
+  transition: color 0.15s, border-color 0.15s;
+}
+a.credential-chip:hover {
+  color: var(--amber);
+  border-color: var(--amber);
 }
 
 /* ── Services ─────────────────────────────────────────────────── */

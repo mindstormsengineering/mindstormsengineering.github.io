@@ -5,8 +5,6 @@ title: "Getting Started with FPGA Design: A Practical Introduction"
 date: 2023-11-01
 type: talk
 subjects:
-  - fpga
-  - education
   - digital-design
 excerpt: >
   Slides and notes from an introductory talk on FPGA development — covering

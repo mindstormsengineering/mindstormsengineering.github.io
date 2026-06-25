@@ -6,7 +6,7 @@ type: tutorial
 subjects:
   - firmware
   - hardware
-  - education
+venue: Hackaday Supercon
 excerpt: >
   Workshop materials from Hackaday Supercon 2022: a hands-on introduction to STM32
   development with CubeIDE and the HAL, aimed at makers comfortable with Arduino
@@ -30,6 +30,8 @@ documents:
 ---
 
 *Workshop given at [Hackaday Supercon 2022](https://hackaday.io/superconference/), October 2022.*
+
+![]({{ '/assets/supercon22_beyond_arduino/schedule.png' | relative_url }})
 
 Supercon draws a lot of people who are comfortable with Arduino — they've built things, they understand the loop, they've probably used a library or two. At some point, though, the comfortable abstraction starts to get in the way: performance, code size, peripheral availability, vendor support. This workshop was for that moment.
 

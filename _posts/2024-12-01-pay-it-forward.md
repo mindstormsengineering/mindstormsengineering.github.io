@@ -4,7 +4,8 @@ title: "Pay It Forward"
 date: 2024-12-01
 type: article
 subjects:
-  - education
+  - teaching
+venue: EmbeddedRelated
 excerpt: >
   A call for engineers to pay forward the experiences that first drew them to
   the field — a short list of organizations giving more young people access to

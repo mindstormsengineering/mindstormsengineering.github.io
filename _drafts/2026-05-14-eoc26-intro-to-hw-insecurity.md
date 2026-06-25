@@ -6,7 +6,7 @@ type: tutorial
 subjects:
   - security
   - hardware
-  - education
+venue: Embedded Online Conference
 excerpt: >
   Workshop slides, recording, and exercise files from the Embedded Online Conference 2026:
   hands-on differential power analysis and fault injection using the ChipWhisperer Nano.
@@ -23,7 +23,7 @@ documents:
 
 {% include youtube.html id="ldqvHjCgYu4" %}
 
-A hands-on hardware security workshop built around the ChipWhisperer Nano, a development board designed specifically for learning side-channel analysis and fault injection. Participants who had one could follow along with live exercises; everyone else received pre-collected datasets so the analysis could still be run. The workshop is about 70% power side-channel attacks (split between understanding the technique and executing an actual DPA attack on AES) with the remaining time split between framing the attack landscape and a demonstration of fault injection.
+A hands-on hardware security workshop built around the ChipWhisperer Nano, a development board designed specifically for learning side-channel analysis and fault injection. Participants who had one could follow along with live exercises; everyone else received pre-collected datasets so the analysis could still be run. The workshop focused predominantly on power side-channel attacks (split between understanding the technique and executing an actual DPA attack on AES) with the remaining time split between framing the attack landscape and a demonstration of fault injection.
 
 **Context: where these attacks fit**
 
@@ -39,7 +39,7 @@ DPA exploits the relationship between a device's power consumption and the data 
 
 The attack on AES targets the output of the S-box substitution in the first round, since that value depends on only one byte of the key and the known plaintext. The procedure:
 
-1. Encrypt many known plaintexts and capture a power trace for each (~750 traces in the workshop exercises).
+1. Encrypt many known plaintexts and capture a power trace for each (~2500 traces in the workshop exercises).
 2. For each of the 256 possible values of a key byte, compute the predicted S-box output for each trace using that hypothesis and the known plaintext.
 3. Partition the traces into two groups based on the least significant bit of the predicted S-box output.
 4. Average each group and subtract. If the key hypothesis is correct, the traces are partitioned along a real physical boundary and the subtraction reveals a spike at the moment the S-box computation occurs. If the hypothesis is wrong, the partitioning is essentially random and the subtraction produces noise.
@@ -49,7 +49,7 @@ The exercises build up to this incrementally: plotting traces, implementing the 
 
 **Fault injection**
 
-The workshop closes with a demonstration of voltage glitching: briefly pulling down the supply voltage at a precisely timed moment to cause the target to execute an instruction incorrectly or skip it entirely. The specific example is bypassing a password comparison — a well-timed glitch on the supply rail causes the branch instruction to fail, granting access without knowing the password. The ChipWhisperer Nano has hardware support for triggering these glitches with nanosecond precision. This section works as a demonstration for everyone; running the hands-on exercises requires having the hardware.
+The workshop closes with a demonstration of voltage glitching: briefly pulling down the supply voltage at a precisely timed moment to cause the target to execute an instruction incorrectly or skip it entirely. The specific example is bypassing a password comparison — a well-timed glitch on the supply rail causes any one of dozens of instructions to fail, granting access without knowing the password. The ChipWhisperer Nano has hardware support for triggering these glitches with nanosecond precision. This section works as a demonstration for everyone; running the hands-on exercises requires having the hardware.
 
 For a deeper written treatment of the DPA technique, ["Breaking AES with an Oscilloscope"](https://www.embeddedrelated.com/showarticle/1761.php) on EmbeddedRelated covers the same attack with more detail on the math and practical countermeasures.
 

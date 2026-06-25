@@ -6,7 +6,7 @@ type: talk
 subjects:
   - firmware
   - tooling
-  - education
+venue: Crowd Supply Teardown
 excerpt: >
   Slides and recording from Teardown Portland 2024: how to add a lightweight
   command-line interface to an embedded system over UART, from parsing input to

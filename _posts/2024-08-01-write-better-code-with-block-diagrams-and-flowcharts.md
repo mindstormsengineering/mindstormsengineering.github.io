@@ -5,7 +5,9 @@ date: 2024-08-01
 type: article
 subjects:
   - firmware
-  - education
+  - architecture
+  - tooling
+venue: EmbeddedRelated
 excerpt: >
   Two graphical tools every embedded engineer should be using — software block
   diagrams for system architecture and flowcharts for algorithm logic — plus a

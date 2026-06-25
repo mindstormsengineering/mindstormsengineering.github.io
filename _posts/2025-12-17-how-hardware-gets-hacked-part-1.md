@@ -5,7 +5,7 @@ date: 2025-12-17
 type: article
 subjects:
   - security
-  - education
+venue: DigiKey
 excerpt: >
   Introduction to the series: the MITRE Embedded Capture the Flag competition,
   the insecure car-and-key-fob system that serves as the target, and what flags

@@ -11,7 +11,7 @@ title: Works
       <h1>Articles, Videos &amp; More</h1>
       <p class="works-intro">
         A living archive of consulting work, conference presentations, technical
-        articles, and educational content. Filter by type or subject below.
+        articles, and educational content. Filter by type, subject, or venue below.
       </p>
     </header>
 
@@ -46,6 +46,23 @@ title: Works
         </div>
       </div>
 
+      <div class="filter-group">
+        <span class="filter-label">Venue</span>
+        <div class="filter-buttons" role="group" aria-label="Filter by venue">
+          <button class="filter-btn active" data-filter="venue" data-value="all">All</button>
+          {% assign all_venues = "" | split: "" %}
+          {% for post in site.posts %}
+            {% if post.venue %}
+              {% assign all_venues = all_venues | push: post.venue %}
+            {% endif %}
+          {% endfor %}
+          {% assign unique_venues = all_venues | uniq | sort %}
+          {% for venue in unique_venues %}
+          <button class="filter-btn" data-filter="venue" data-value="{{ venue | downcase | replace: ' ', '-' | replace: '.', '' }}">{{ venue }}</button>
+          {% endfor %}
+        </div>
+      </div>
+
       <div class="filter-group filter-sort">
         <span class="filter-label">Sort</span>
         <div class="filter-buttons">
@@ -64,6 +81,7 @@ title: Works
         class="work-card work-card-full"
         data-type="{{ post.type | default: 'article' }}"
         data-subjects="{{ post.subjects | join: ',' | downcase | replace: ' ', '-' }}"
+        data-venue="{{ post.venue | downcase | replace: ' ', '-' | replace: '.', '' }}"
         data-date="{{ post.date | date: '%s' }}"
       >
         <div class="work-card-meta">
@@ -89,6 +107,7 @@ title: Works
             {% for s in post.subjects %}
             <span class="tag tag-subject">{{ s }}</span>
             {% endfor %}
+            {% if post.venue %}<span class="tag tag-venue">{{ post.venue }}</span>{% endif %}
           </div>
           {% endif %}
 

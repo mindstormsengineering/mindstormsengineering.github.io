@@ -2,9 +2,12 @@
 layout: default
 title: Home
 ---
+<script src="{{ '/assets/js/turtle-bg.js' | relative_url }}" defer></script>
 
 <!-- ═══════════════════════════════════════════════════════ HERO -->
 <section class="hero">
+  <canvas id="turtle-canvas" aria-hidden="true"
+          data-sprite="{{ '/assets/images/turtle_sprite.png' | relative_url }}"></canvas>
   <div class="hero-inner">
     <div class="hero-eyebrow">Mindstorms Engineering, LLC</div>
     <h1 class="hero-headline">
@@ -18,19 +21,6 @@ title: Home
     <div class="hero-cta">
       <a href="#services" class="btn btn-primary">Areas of Expertise</a>
       <a href="#contact" class="btn btn-ghost">Get in Touch</a>
-    </div>
-  </div>
-  <div class="hero-diagram" aria-hidden="true">
-    <div class="circuit-art">
-      <div class="ca-chip"></div>
-      <div class="ca-trace ca-trace-h ca-t1"></div>
-      <div class="ca-trace ca-trace-v ca-t2"></div>
-      <div class="ca-trace ca-trace-h ca-t3"></div>
-      <div class="ca-via ca-v1"></div>
-      <div class="ca-via ca-v2"></div>
-      <div class="ca-via ca-v3"></div>
-      <div class="ca-node ca-n1"></div>
-      <div class="ca-node ca-n2"></div>
     </div>
   </div>
 </section>
@@ -104,12 +94,14 @@ title: Home
   <div class="credential-strip-inner">
     <span class="credential-label">As Seen At</span>
     <div class="credential-items">
-      <span class="credential-chip">West Point</span>
-      <span class="credential-chip">Embedded Online Conference</span>
-      <span class="credential-chip">Crowd Supply Teardown</span>
-      <span class="credential-chip">Supercon</span>
-      <span class="credential-chip">JawnCon</span>
-      <span class="credential-chip">EmbeddedRelated.com</span>
+      <a class="credential-chip" href="{{ '/works.html' | relative_url }}?venue=west-point">West Point</a>
+      <a class="credential-chip" href="{{ '/works.html' | relative_url }}?venue=embedded-online-conference">Embedded Online Conference</a>
+      <a class="credential-chip" href="{{ '/works.html' | relative_url }}?venue=crowd-supply-teardown">Crowd Supply Teardown</a>
+      <a class="credential-chip" href="{{ '/works.html' | relative_url }}?venue=hackaday-supercon">Supercon</a>
+      <a class="credential-chip" href="{{ '/works.html' | relative_url }}?venue=jawncon">JawnCon</a>
+      <a class="credential-chip" href="{{ '/works.html' | relative_url }}?venue=embedded-systems-summit">Embedded Systems Summit</a>
+      <a class="credential-chip" href="{{ '/works.html' | relative_url }}?venue=embeddedrelated">EmbeddedRelated.com</a>
+      <a class="credential-chip" href="{{ '/works.html' | relative_url }}?venue=digikey">DigiKey</a>
     </div>
   </div>
 </div>
@@ -123,81 +115,85 @@ title: Home
 
       <div class="service-card">
         <div class="service-num">01</div>
-        <h3>Firmware Architecture Review</h3>
-        <p><em>Before structural problems become expensive ones.</em> A focused
-           review of firmware layering, module boundaries, state machine design,
-           memory ownership, and scheduler structure—delivered as a prioritized
-           written report.</p>
+        <h3>Firmware Architecture</h3>
+        <p>Firmware that's hard to read is usually hard to trust. My background
+           spans layering design, state machine structure, memory ownership, and
+           scheduler organization—the foundational decisions that determine how
+           maintainable and reliable a codebase stays over time.</p>
         <a href="#contact" class="service-link">Get in touch →</a>
       </div>
 
       <div class="service-card">
         <div class="service-num">02</div>
-        <h3>Debug Consultation</h3>
-        <p><em>Stuck on a bug that defies explanation?</em> A focused 90-minute
-           live session covering timing failures, memory corruption, peripheral
-           misbehavior, intermittent faults, and other hard-to-reproduce
-           problems.</p>
+        <h3>Debugging</h3>
+        <p>Debugging at the hardware/software boundary is a specific skill. I
+           understand how timing, memory layout, peripheral state, and interrupt
+           behavior interact—and how to isolate faults that don't show up in
+           normal testing.</p>
         <a href="#contact" class="service-link">Get in touch →</a>
       </div>
 
       <div class="service-card">
         <div class="service-num">03</div>
-        <h3>Board Bring-Up Support</h3>
-        <p><em>Your new board just arrived. Let's get it running.</em> Expert
-           support for clock configuration, peripheral initialization, debug
-           interface setup, power sequencing, and hardware/firmware fault
-           isolation.</p>
+        <h3>Board Bring-Up</h3>
+        <p>Board bring-up requires knowing what "not working" actually means. I'm
+           comfortable at the hardware/firmware boundary: reading schematics,
+           probing power rails, interpreting oscilloscope traces, and
+           systematically isolating whether a problem is in the silicon, the
+           layout, the firmware, or the configuration.</p>
         <a href="#contact" class="service-link">Get in touch →</a>
       </div>
 
       <div class="service-card">
         <div class="service-num">04</div>
-        <h3>Hardware Security Consultation</h3>
-        <p><em>How would an attacker approach your device?</em> A structured
-           review of debug interface exposure, side-channel attack surface, fault
-           injection risk, and firmware extraction paths—grounded in hands-on
-           ChipWhisperer experience.</p>
+        <h3>Hardware Security</h3>
+        <p>Hardware security is easier to overlook than software security—and
+           often harder to fix after the fact. I have hands-on experience with
+           ChipWhisperer, side-channel analysis, fault injection, debug interface
+           exposure, and firmware extraction: the attack surface most products
+           don't audit until it's too late.</p>
         <a href="#contact" class="service-link">Get in touch →</a>
       </div>
 
       <div class="service-card">
         <div class="service-num">05</div>
         <h3>Firmware Tooling &amp; Developer Productivity</h3>
-        <p><em>The right tooling makes bugs easier to find and firmware easier
-           to trust.</em> CLI development, simulator and HAL design for
-           hardware-free testing, unit test harness setup, and logging and
-           telemetry infrastructure.</p>
+        <p>Firmware that can only be tested on real hardware is firmware that's
+           hard to develop confidently. I understand how to design HALs for
+           testability, build CLI and simulation infrastructure, set up unit test
+           harnesses, and add logging and telemetry that makes bugs visible
+           rather than hidden.</p>
         <a href="#contact" class="service-link">Get in touch →</a>
       </div>
 
       <div class="service-card">
         <div class="service-num">06</div>
         <h3>Digital Logic &amp; Computer Architecture</h3>
-        <p><em>The foundations that make firmware make sense.</em> Digital logic
-           design, RTL development, and FPGA implementation—plus university-level
-           curriculum including a full Computer Architecture course redesign at
-           West Point.</p>
+        <p>Understanding digital logic and computer architecture is what separates
+           embedded engineers who guess from ones who know. I've designed and
+           taught this material—and know how to make it concrete for people who
+           need to apply it, not just pass an exam.</p>
         <a href="#contact" class="service-link">Get in touch →</a>
       </div>
 
       <div class="service-card">
         <div class="service-num">07</div>
         <h3>Technical Training &amp; Curriculum</h3>
-        <p><em>Deep, practical embedded systems training built for your team or
-           course.</em> Custom workshops, multi-week curriculum development, and
-           professional onboarding—grounded in fifteen years of teaching and five
-           conference workshops.</p>
+        <p>Teaching embedded systems well means explaining not just the how, but
+           the why—and knowing which details matter at which stage. I've
+           developed curriculum at the university level, run workshops at
+           hardware conferences, and written instructional content for engineers
+           at all experience levels.</p>
         <a href="#contact" class="service-link">Get in touch →</a>
       </div>
 
       <div class="service-card">
         <div class="service-num">08</div>
         <h3>Technical Writing &amp; Documentation</h3>
-        <p><em>Complex hardware and firmware, made approachable.</em> Published
-           articles and tutorials for EmbeddedRelated.com and DigiKey, product
-           documentation and getting-started guides, technical reviews, and
-           reference documentation.</p>
+        <p>Technical writing is where clarity about a system becomes visible. I've
+           written for EmbeddedRelated.com and DigiKey, and understand what it
+           takes to explain hardware and firmware concepts to audiences ranging
+           from beginners to working professionals.</p>
         <a href="#contact" class="service-link">Get in touch →</a>
       </div>
 
@@ -275,7 +271,7 @@ title: Home
 
           To use Formspree: sign up, create a form, replace YOUR_FORM_ID below.
         -->
-        <form class="contact-form" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+        <form class="contact-form" action="https://formspree.io/f/xwvdvdvq" method="POST">
           <div class="form-row">
             <label for="cf-first">First Name</label>
             <input type="text" id="cf-first" name="first_name" required>

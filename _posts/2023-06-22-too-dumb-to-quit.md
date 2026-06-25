@@ -4,7 +4,8 @@ title: "Too Dumb to Quit (Embedded.fm, Ep453)"
 date: 2023-06-22
 type: podcast
 subjects:
-  - education
+  - teaching
+venue: Embedded.fm
 excerpt: >
   I got to be on the Embedded.fm podcast! We talked about building command line interfaces, good design practices in C, creating MCU boards, wielding the PIC of destiny, and going beyond Arduino.
 ---

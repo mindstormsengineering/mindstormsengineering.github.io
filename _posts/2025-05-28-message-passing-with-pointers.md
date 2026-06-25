@@ -5,7 +5,8 @@ date: 2025-05-28
 type: article
 subjects:
   - firmware
-  - education
+  - architecture
+venue: DigiKey
 excerpt: >
   Why passing large structs by pointer instead of by value saves memory copies
   and instruction cycles in RTOS task communication — and the three ownership

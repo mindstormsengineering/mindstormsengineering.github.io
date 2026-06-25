@@ -5,7 +5,8 @@ date: 2025-10-27
 type: article
 subjects:
   - firmware
-  - education
+  - debugging
+venue: DigiKey
 excerpt: >
   Part 3 replaces human-readable text with binary serialization, reaching
   38.9k–117.8k messages per second using MessagePack, FlatBuffers, and bitproto

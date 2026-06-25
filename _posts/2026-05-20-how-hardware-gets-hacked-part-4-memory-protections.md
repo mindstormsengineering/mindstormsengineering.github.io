@@ -5,8 +5,8 @@ date: 2026-05-20
 type: article
 subjects:
   - security
-  - embedded
-  - education
+  - firmware
+venue: DigiKey
 excerpt: >
   The first complete attack/defense cycle in this eCTF series: reading device
   secrets over an unlocked debug port, disabling it, and formalizing what was

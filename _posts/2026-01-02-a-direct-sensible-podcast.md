@@ -4,7 +4,8 @@ title: "A Direct, Sensible Podcast (Embedded.fm, Ep517)"
 date: 2026-01-02
 type: podcast
 subjects:
-  - education
+  - teaching
+venue: Embedded.fm
 excerpt: >
   I got to be on the Embedded.fm podcast again! We talked about Elecia and Chris's annual performance review and raised money for Elevate Tutoring.
 ---

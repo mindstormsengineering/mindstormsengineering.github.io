@@ -4,7 +4,8 @@ title: "Octopus Army (Embedded.fm, Ep492)"
 date: 2024-12-26
 type: podcast
 subjects:
-  - education
+  - teaching
+venue: Embedded.fm
 excerpt: >
   I got to be on the Embedded.fm podcast again! We talked about my proposal for a computer architecture book based on a 4-bit computer (the Hackaday Supercon 2022 badge, affectionately known as the "Voja4") and the end-of-the-year survey I did for the podcast.
 ---

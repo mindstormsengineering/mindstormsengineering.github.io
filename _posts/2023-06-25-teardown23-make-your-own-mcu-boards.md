@@ -5,8 +5,7 @@ date: 2023-06-25
 type: talk
 subjects:
   - hardware
-  - pcb
-  - education
+venue: Crowd Supply Teardown
 excerpt: >
   Slides and recording from Teardown Portland 2023: the five things every MCU board
   needs, why the minimal circuit is simpler than you think, and how to source, lay
@@ -42,7 +41,7 @@ No matter the microcontroller, there are five fundamental concerns, and none req
 
 **Sourcing, layout, and assembly**
 
-I covered the hobbyist-friendly end of the stack: LCSC for components, KiCad for schematic capture and layout, and services like JLCPCB or OSHPark for fabrication. These aren't the only options, but they have low minimums, reasonable prices, and well-documented workflows.
+I covered the hobbyist-friendly end of the stack: LCSC for components, EasyEDA for schematic capture and layout, and services like JLCPCB or MakerFabs for fabrication. These aren't the only options, but they have low minimums, reasonable prices, and well-documented workflows.
 
 I also touched briefly on the electrical constraints worth keeping in mind: making sure your supply voltage and current budget are right, and that signal traces are short enough that rise time doesn't cause problems. For most hobbyist designs running at moderate clock speeds, rise time isn't a crisis — but knowing it exists means you won't be surprised the first time it is.
 

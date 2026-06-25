@@ -5,7 +5,8 @@ date: 2026-03-04
 type: article
 subjects:
   - firmware
-  - education
+  - debugging
+venue: DigiKey
 excerpt: >
   Part 2 works through the race conditions in the double-buffer scheme from Part
   1, categorizes three types of critical sections, and applies three tools to

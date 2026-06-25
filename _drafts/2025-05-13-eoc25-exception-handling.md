@@ -5,7 +5,7 @@ date: 2025-05-13
 type: tutorial
 subjects:
   - firmware
-  - education
+venue: Embedded Online Conference
 excerpt: >
   Workshop slides and recording from the Embedded Online Conference 2025, covering
   how to cleanly and simply detect, propagate, and handle exceptions in embedded C/C++.
@@ -23,11 +23,11 @@ The workshop opens with a distinction that shapes everything that follows: *erro
 
 **Identifying exceptions**
 
-The workshop is structured as hands-on exercises around an Arduino test harness with temperature sensors and accelerometers. We start at leaf functions — the I2C read, the ADC conversion, the buffer write — because that's where something can first go wrong. Working through the test harness, we annotate each leaf function with the exceptions it can detect: conversion timeouts, values outside a physical plausible range, communication errors.
+The workshop is structured as hands-on exercises around an Arduino test harness with temperature sensors and accelerometers (in Wokwi). We start at leaf functions — the I2C read, the ADC conversion, the buffer write — because that's where something can first go wrong. Working through the test harness, we annotate each leaf function with the exceptions it can detect: conversion timeouts, values outside a physical plausible range, communication errors.
 
 **Reporting exceptions**
 
-Once a leaf function detects an exception, it needs to communicate that to its caller. We cover three mechanisms in embedded context: return values (with C++23's `[[nodiscard]]` attribute to prevent callers from silently ignoring the result), output parameters, and `std::expected` (also C++23). Each has trade-offs in verbosity, expressiveness, and compatibility with coding standards — the workshop walks through examples of each and discusses when each makes sense.
+Once a leaf function detects an exception, it needs to communicate that to its caller. We cover six mechanisms in embedded context: try/catch, return values (with C++23's `[[nodiscard]]` attribute to prevent callers from silently ignoring the result), output parameters, local variables (i.e. `errno`, and signals/callbacks. Each has trade-offs in verbosity, expressiveness, and compatibility with coding standards — the workshop walks through examples of each and discusses when each makes sense.
 
 **Responding to exceptions**
 

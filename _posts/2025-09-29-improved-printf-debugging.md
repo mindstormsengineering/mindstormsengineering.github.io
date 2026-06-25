@@ -5,7 +5,8 @@ date: 2025-09-29
 type: article
 subjects:
   - firmware
-  - education
+  - debugging
+venue: DigiKey
 excerpt: >
   Two additions that make printf debugging significantly more useful: automatic
   source location tagging via C macros, and severity-level filtering with

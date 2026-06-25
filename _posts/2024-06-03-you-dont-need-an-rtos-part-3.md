@@ -5,7 +5,8 @@ date: 2024-06-03
 type: article
 subjects:
   - firmware
-  - education
+  - architecture
+venue: EmbeddedRelated
 excerpt: >
   A survey of ready-to-use cooperative schedulers — Protothreads, ULWOS2,
   cocoOS, SST0/QV — alongside a walkthrough of how to implement thread flags,
@@ -21,5 +22,9 @@ Part 3 addresses one of the main objections to the superloop: the RTOS primitive
 For engineers who want more control than these schedulers offer, the second half of the article demonstrates how to implement thread flags, binary semaphores, and event flags directly on top of the Superduperloop. The result is the "Superduperloop v2" — a non-preemptive scheduler with the IPC mechanisms most commonly needed in practice, written from scratch in a few dozen lines of C.
 
 The article makes the case that adding IPC to the Superduperloop is not as hard as it might seem, and that doing so gives the engineer maximum control over timing behavior and system structure — something that off-the-shelf schedulers and RTOSes necessarily trade away for convenience. Part 4 completes the picture with mailboxes, queues, counting semaphores, the Observer pattern, and a dispatch queue.
+
+**Additional Resources**
+
+- [You Don't Need an RTOS (Teardown 2025)]({% post_url 2025-06-21-teardown25-you-dont-need-an-rtos %}) — a talk covering the schedulability analysis and the case for cooperative scheduling
 
 [Read the full article →](https://www.embeddedrelated.com/showarticle/1653.php)

@@ -7,7 +7,7 @@ type: tutorial
 subjects:
   - firmware
   - architecture
-  - education
+  - tooling
 excerpt: >
   How to structure a Hardware Abstraction Layer so that application code
   doesn't care which microcontroller it's running on — and how to use

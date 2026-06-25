@@ -4,8 +4,8 @@ title: "Project Log: Pixelblaze Christmas Lights"
 date: 2025-12-22
 type: article
 subjects:
-  - firmware
   - hardware
+venue: EmbeddedRelated
 excerpt: >
   A project log for building outdoor addressable LED Christmas lights using the
   Pixelblaze ESP32-based controller — covering power delivery, weatherproofing,

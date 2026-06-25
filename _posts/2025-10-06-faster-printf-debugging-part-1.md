@@ -5,7 +5,8 @@ date: 2025-10-06
 type: article
 subjects:
   - firmware
-  - education
+  - debugging
+venue: DigiKey
 excerpt: >
   Part 1 of a three-part series: hardware settings and one library swap reduce a
   22-character debug message from 7,030 µs to 140 µs on a Nucleo-F042K6 — a 50×

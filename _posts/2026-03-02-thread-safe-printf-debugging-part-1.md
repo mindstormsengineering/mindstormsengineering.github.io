@@ -5,7 +5,8 @@ date: 2026-03-02
 type: article
 subjects:
   - firmware
-  - education
+  - debugging
+venue: DigiKey
 excerpt: >
   Naive printf calls from ISRs or RTOS threads produce garbled output or worse.
   Part 1 works through three solutions — disabling interrupts, a mutex, and a

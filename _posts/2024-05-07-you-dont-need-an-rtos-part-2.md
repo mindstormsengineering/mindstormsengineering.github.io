@@ -5,7 +5,8 @@ date: 2024-05-07
 type: article
 subjects:
   - firmware
-  - education
+  - architecture
+venue: EmbeddedRelated
 excerpt: >
   Three targeted improvements to the basic superloop — task priorities,
   interrupt-driven tasks, and finite state machines — that bring worst-case
@@ -19,5 +20,9 @@ excerpt: >
 Part 2 of the "You Don't Need an RTOS" series takes the simple superloop from Part 1 and applies three targeted modifications that together produce what I call the "Superduperloop": a non-preemptive scheduler whose worst-case response time approaches that of a preemptive RTOS. The three changes are adding task priorities (via if/else-if chains so higher-priority tasks preempt lower ones at loop boundaries), adding interrupt service routines for truly time-critical work, and restructuring tasks as finite state machines so long-running operations yield voluntarily without blocking the scheduler. Three different methods for assigning task priorities are discussed and demonstrated.
 
 A concrete benchmark shows the Superduperloop besting a preemptive RTOS on worst-case response time in a specific task set, by exploiting the determinism of non-preemptive scheduling. The article also covers how to incorporate a sleep mode when there is no work to be done, and introduces the time-triggered scheduler as an alternative design for difficult task sets.
+
+**Additional Resources**
+
+- [You Don't Need an RTOS (Teardown 2025)]({% post_url 2025-06-21-teardown25-you-dont-need-an-rtos %}) — a talk covering the schedulability analysis and the case for cooperative scheduling
 
 [Read the full article →](https://www.embeddedrelated.com/showarticle/1652.php)

@@ -5,7 +5,8 @@ date: 2024-07-02
 type: article
 subjects:
   - firmware
-  - education
+  - architecture
+venue: EmbeddedRelated
 excerpt: >
   The concluding installment: implementing mailboxes, queues, counting
   semaphores, and the Observer pattern on top of the Superduperloop, plus
@@ -21,5 +22,9 @@ Part 4 finishes the IPC taxonomy started in Part 3. Mailboxes, queues, counting 
 A second major addition is the dispatch queue: an alternative non-preemptive scheduler in which tasks are posted as function pointers to a central queue and executed in EDF (earliest deadline first) order. This is conceptually simple to understand but significantly more challenging to analyze for determining schedulability than any other technique discussed thus far. The tradeoff is that it handles certain difficult task sets that the Superduperloop cannot, which makes it a useful complementary tool.
 
 The article closes with a full summary of the four-part series — what schedulability analysis tells you, when the Superduperloop suffices, when to reach for one of the off-the-shelf cooperative schedulers from Part 3, and when a preemptive RTOS is actually justified. The core takeaway: the RTOS should be the last tool you reach for, not the first.
+
+**Additional Resources**
+
+- [You Don't Need an RTOS (Teardown 2025)]({% post_url 2025-06-21-teardown25-you-dont-need-an-rtos %}) — a talk covering the schedulability analysis and the case for cooperative scheduling
 
 [Read the full article →](https://www.embeddedrelated.com/showarticle/1662.php)

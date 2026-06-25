@@ -4,7 +4,9 @@ title: "This Isn't a Movie (Embedded.fm, Ep524)"
 date: 2026-04-16
 type: podcast
 subjects:
-  - education
+  - security
+  - teaching
+venue: Embedded.fm
 excerpt: >
   I got to be on the Embedded.fm podcast again! We talked about hardware security, motivation, conference talks, and writing.
 ---

@@ -4,7 +4,8 @@ title: "What I Learned From Crashing and Burning in Grad School"
 date: 2024-09-04
 type: article
 subjects:
-  - education
+  - teaching
+venue: EmbeddedRelated
 excerpt: >
   A candid personal essay about struggling with perfectionism and
   overachievement in graduate school — and the unexpected lessons it unlocked

@@ -5,7 +5,7 @@ date: 2026-03-18
 type: article
 subjects:
   - security
-  - education
+venue: DigiKey
 excerpt: >
   Part 2 rebuilds the eCTF project in four progressive builds — simulator, test
   commands, real hardware, automated tests — and examines what information

@@ -5,7 +5,7 @@ date: 2025-10-22
 type: article
 subjects:
   - hardware
-  - education
+venue: DigiKey
 excerpt: >
   A 16-bit ADC doesn't always give you 16 bits of useful information — noise can
   reduce effective resolution dramatically. This article shows how to measure it

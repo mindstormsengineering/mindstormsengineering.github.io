@@ -4,7 +4,8 @@ title: "Embedded Systems Roadmaps"
 date: 2023-11-09
 type: article
 subjects:
-  - education
+  - teaching
+venue: EmbeddedRelated
 excerpt: >
   A curated survey of skill roadmaps for embedded systems engineers — from ACM
   curriculum guidelines to book recommendations — to help practitioners assess

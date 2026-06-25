@@ -5,7 +5,7 @@ date: 2026-04-20
 type: article
 subjects:
   - security
-  - education
+venue: DigiKey
 excerpt: >
   Part 3 is about reconnaissance: a four-step framework for building an
   attacker's understanding of the target before attempting any exploit.

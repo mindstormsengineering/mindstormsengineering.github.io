@@ -5,8 +5,7 @@ date: 2023-06-25
 type: tutorial
 subjects:
   - hardware
-  - firmware
-  - education
+venue: Crowd Supply Teardown
 excerpt: >
   Workshop materials from Teardown Portland 2023: guided assembly and programming
   of HackerBox #0040, a PIC microcontroller kit with a PICkit 3 programmer, LCD
@@ -18,6 +17,8 @@ documents:
 ---
 
 *Workshop given at [Teardown Portland 2023](https://www.crowdsupply.com/teardown/portland-2023/workshop/build-hackerbox-0040-and-wield-the-pic-of-destiny), June 2023.*
+
+![]({{ '/assets/teardown23_PIC_of_destiny/hackerbox.png' | relative_url }})
 
 HackerBox #0040 is a kit built around PIC microcontrollers — specifically a PIC16F628 and a PIC12F675, alongside a PICkit 3 programmer with ZIF socket, a 16x2 LCD display, a GPS module with antenna, and a breadboard full of supporting components. This workshop was as much about working through a real hardware kit as about any specific skill: build first, understand as you go.
 

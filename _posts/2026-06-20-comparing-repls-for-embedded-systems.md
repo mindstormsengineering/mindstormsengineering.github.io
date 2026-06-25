@@ -6,7 +6,7 @@ published: false
 type: article
 subjects:
   - firmware
-  - education
+  - tooling
 excerpt: >
   MicroPython, the Zephyr shell, Lua, and Forth, evaluated for embedded
   development on ease of onboarding, compiled size, C/C++ interoperability,

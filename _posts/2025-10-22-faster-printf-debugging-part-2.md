@@ -5,7 +5,8 @@ date: 2025-10-22
 type: article
 subjects:
   - firmware
-  - education
+  - debugging
+venue: DigiKey
 excerpt: >
   Part 2 pushes from 140 µs to 88 µs per debug message using asynchronous
   transmission and buffered USB — roughly 80× faster than the original baseline,

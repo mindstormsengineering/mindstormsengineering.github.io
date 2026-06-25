@@ -5,7 +5,8 @@ date: 2025-05-13
 type: tutorial
 subjects:
   - firmware
-  - education
+  - architecture
+venue: Embedded Online Conference
 excerpt: >
   Workshop slides and recording from the Embedded Online Conference 2025, covering
   how to cleanly and simply detect, propagate, and handle exceptions in embedded C/C++.
@@ -19,20 +20,18 @@ documents:
 
 {% include youtube.html id="D8QEJk2Grbg" %}
 
-I led this session as the opening workshop of EOC 2025, and I was genuinely excited — exception handling is one of those topics that embedded developers deal with constantly but rarely discuss in a structured way.
+The workshop opens with a distinction that shapes everything that follows: *errors* and *exceptions* are not the same thing. Errors are bugs — dereferencing a null pointer, calling a function before initializing the peripheral it depends on, taking the square root of a negative number. They represent things that shouldn't happen, and when they do the right response is usually a reset or a safe-mode transition, not a recovery attempt. Exceptions are different: I2C timeouts, out-of-range sensor readings, checksum failures on received data. They represent things that *can legitimately occur* during normal operation and that a well-designed system should handle gracefully. Conflating the two leads to either over-engineering (defensive code for scenarios that indicate a bug) or under-engineering (silently swallowing failures that should propagate).
 
-The first thing I wanted to nail down is the distinction between *errors* and *exceptions*, because I think conflating them leads to bad designs. Errors, to me, are bugs: dereferencing a pointer before allocating memory, taking the square root of a negative number — things that should never happen and indicate something has gone horribly wrong. The right response to a true error is usually a reset or a safe-mode fallback, not a recovery attempt. Exceptions are different: they're things that *might* legitimately occur during operation — an I2C timeout, a sensor value out of expected range, a checksum mismatch on received data — and that need to be handled gracefully.
+**Identifying exceptions**
 
-The session was structured as a hands-on workshop. Attendees brought their own embedded projects (or used sample code I provided), and we worked through a progression together:
+The workshop is structured as hands-on exercises around an Arduino test harness with temperature sensors and accelerometers (in Wokwi). We start at leaf functions — the I2C read, the ADC conversion, the buffer write — because that's where something can first go wrong. Working through the test harness, we annotate each leaf function with the exceptions it can detect: conversion timeouts, values outside a physical plausible range, communication errors.
 
-1. **Identifying exceptions at leaf functions** — where in your call stack are things that could go wrong? I2C reads, sensor polling, buffer writes. We instrumented those functions to detect and report exceptions back to the caller rather than silently failing or returning garbage.
+**Reporting exceptions**
 
-2. **Propagating exceptions up the call stack** — once you detect something at the leaf level, how do you get that information to a layer that can actually do something about it? Return codes, output parameters, and C++ `std::expected` all came up here. I also mentioned `setjmp`/`longjmp`-inspired patterns for those deep in callback-heavy code, though I was careful to note that doesn't mean you should.
+Once a leaf function detects an exception, it needs to communicate that to its caller. We cover six mechanisms in embedded context: try/catch, return values (with C++23's `[[nodiscard]]` attribute to prevent callers from silently ignoring the result), output parameters, local variables (i.e. `errno`, and signals/callbacks. Each has trade-offs in verbosity, expressiveness, and compatibility with coding standards — the workshop walks through examples of each and discusses when each makes sense.
 
-3. **Handling exceptions at the right level** — not every caller needs to respond to every exception. The question is which layer in the system actually has the context to make a meaningful decision.
+**Responding to exceptions**
 
-One pattern that came up repeatedly — and that I enjoyed having a name for — is "car crash code" (sometimes called "brunge"): deeply nested if-else trees or chains of `goto cleanup` that make following the happy path feel like navigating a wreck. We looked at ways to restructure that code so exception paths are still readable without requiring heroics.
-
-One audience member made a point I appreciated: the plain, verbose, check-the-error-code-at-every-step style has real merit, especially in MISRA-constrained embedded environments where `try`/`catch` is off the table. It's not elegant in the conventional sense, but it's regular, auditable, and meets a lot of coding standards. I think that's exactly right — the goal isn't cleverness, it's robustness with minimal effort.
+Not every caller is the right place to handle every exception. The question is which layer in the system has the context to make a meaningful decision — whether to retry, degrade gracefully, surface an error to the user, or escalate to a system-level reset. We work through examples of propagating exceptions up the call stack without losing information, and discuss how to design interfaces that make the exception path as clear as the happy path.
 
 [Session page →](https://embeddedonlineconference.com/session/Exception_Handling)

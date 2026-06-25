@@ -1,12 +1,12 @@
 ---
 layout: post
-title: "Retro Computing with the Hackaday Supercon Badge 'Voja4' (Teardown 2024)"
+title: "Retro Computing with the Hackaday Supercon Badge (Teardown 2024)"
 date: 2024-06-22
 type: tutorial
 subjects:
   - hardware
-  - architecture
-  - education
+  - digital-design
+venue: Crowd Supply Teardown
 excerpt: >
   Workshop slides from Teardown Portland 2024: an introduction to the Voja4 retro
   computer badge, its 4-bit architecture and instruction set, and hands-on assembly
@@ -18,6 +18,8 @@ documents:
 ---
 
 *Workshop given at [Teardown Portland 2024](https://www.crowdsupply.com/teardown/portland-2024/workshop/retro-computing-with-the-hackaday-supercon-badge-voja4), June 2024.*
+
+![]({{ '/assets/teardown24_voja4/voja4.jpg' | relative_url }})
 
 The Voja4 is the Hackaday Supercon 2022 badge: a hand-assembled retro computer with a custom 4-bit CPU, a twelve-button/LED front panel, and an instruction set small enough to hold in your head. I brought it to Teardown to run a hands-on workshop, and it turned out to be a great venue for it — Teardown draws hardware people who appreciate the gap between "interesting architecture" and "I've actually programmed the thing."
 
@@ -39,5 +41,8 @@ Debugging on the Voja4 is a manual process — there's no debugger in the modern
 
 The flowchart technique is something I use for any assembly-level programming: sketch the control flow in plain terms before writing a single instruction. With a constrained instruction set like the Voja4's, the translation from flowchart to code is nearly mechanical once you're familiar with the opcodes.
 
+**Additional Resources**
+
+- [Inside the Voja4 (Hackaday Supercon 2023)]({% post_url 2023-11-04-supercon23-inside-the-voja4 %}) — a recorded talk going deeper into the architecture, ISA design, and Turing-completeness
 - [Badge tools and software (GitHub) →](https://github.com/Hack-a-Day/2022-Supercon6-Badge-Tools)
 - [Voja4 badge on Tindie →](https://www.tindie.com/products/0xc0decafe/supercon-2022-badge-voja4/)
