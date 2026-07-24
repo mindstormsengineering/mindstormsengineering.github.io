@@ -28,25 +28,13 @@ Code and exercises for this workshop are on GitHub: [nathancharlesjones/authenti
 
 Authentication is one of five foundational security principles — alongside confidentiality, integrity, availability, and non-repudiation — and it's the one this workshop dug into: how do you prove a message or piece of data actually came from who it claims to have come from? The running example is a physical access control system: badges and a reader attached to a door. Each exercise breaks a specific assumption in the previous defense, and the fix that follows repairs it.
 
-**Baseline: the UID allowlist**
+**Five defenses, each closing off the last attack**
 
-The starting point is about as simple as authentication gets. A badge presents its ID number; the reader checks it against an allowlist and opens the door if it matches. The "secret" here is just the badge's UID, and in a non-adversarial world that's a fine secret to share in the clear — much like typing a password on a keyboard is fine when you can safely assume an attacker isn't watching. The assumption breaks the moment an attacker can observe traffic, guess a UID, or pull one out of a firmware image or a public repo.
-
-**First defense: challenge-response**
-
-Once the UID itself can leak, sending it directly is no longer sufficient — we need to prove knowledge of a secret without transmitting it, and without letting an attacker learn anything usable even after watching many exchanges. That's what a **message authentication code (MAC)** buys us: the reader sends a nonce, the badge computes a MAC over it with a shared key, and only a badge holding the correct key can produce the right response. This introduces its own new assumptions — the badge can do the computation, the debug port is locked, firmware updates arrive securely — and raises the question of where a good nonce comes from in the first place (PRNG vs. TRNG, and the tradeoffs of each).
-
-**Second defense: per-device keys**
-
-A single shared MAC key across an entire fleet of badges creates a blast-radius problem: steal one badge, dump its firmware or brute-force query it, and the whole fleet is compromised. The fix is deriving a unique device key per badge — `HMAC(fleet_key, UID)` — so the reader never has to store thousands of individual keys but can still recompute the right one on the fly. Losing one badge now only costs one key, provided it gets revoked before an attacker can use it. This is also where key management stops being an afterthought: how a key is generated at the factory, how it's stored on-device, when and how it's used, and how it gets revoked all become load-bearing questions.
-
-**Third defense: mutual authentication**
-
-Every defense so far only authenticates the badge to the reader — nothing stops a skimmer or a rogue reader from "authenticating" a badge and then reading or writing its private data. The fix is to flip the check around: the reader also has to prove who it is before the badge will let it touch anything sensitive. That means moving to asymmetric cryptography and digital signatures, since a shared secret that every reader needs to know is just another thing an attacker can extract from a stolen badge. This is the exercise shown in the diagram above: the badge authenticates to the reader as before, then the reader signs a badge-supplied nonce with its private key, which the badge verifies against a known public key.
-
-**Fourth defense: session keys**
-
-Even after mutual authentication, an attacker who can observe or intercept the conversation can still read or tamper with the data exchanged afterward. The final piece derives a session key — using the same fleet-key-plus-UID derivation trick as before, with an info string to separate it from the device key — so that traffic after the handshake is encrypted with a key that isn't the long-lived device key and doesn't threaten forward secrecy if it's ever exposed.
+- **Baseline: the UID allowlist** — A badge presents its ID number; the reader checks it against an allowlist and opens the door if it matches. Fine when an attacker can't observe traffic or guess a UID — broken the moment one leaks from a log, a firmware image, or a public repo.
+- **Challenge-response** — The reader sends a nonce and the badge computes a **message authentication code (MAC)** over it with a shared key, proving knowledge of a secret without ever transmitting it. This raises new questions of its own, like where a good nonce comes from (PRNG vs. TRNG).
+- **Per-device keys** — A single MAC key shared fleet-wide means one stolen badge compromises everyone. Deriving a unique device key per badge — `HMAC(fleet_key, UID)` — caps the blast radius to one badge and makes key management (generation, storage, revocation) a first-class concern.
+- **Mutual authentication** — Nothing so far stops a rogue reader from "authenticating" a badge and reading its private data. The reader now has to prove itself too, using asymmetric cryptography and digital signatures so no shared secret sits on the reader side waiting to be extracted.
+- **Session keys** — Even after mutual authentication, an eavesdropper can still read the traffic that follows. A session key, derived the same way as the device key but tagged with an info string, encrypts post-handshake traffic without touching the long-lived device key or forward secrecy.
 
 **What's still open**
 
