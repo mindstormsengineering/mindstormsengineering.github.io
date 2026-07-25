@@ -12,10 +12,10 @@ excerpt: >
   access control system from a bare UID check to mutual authentication with
   derived keys and session keys, one broken assumption at a time.
 documents:
-  - title: "Workshop Worksheet (PDF)"
+  - title: "Worksheet (PDF)"
     url: /assets/teardown26_authenticated_exchanges/worksheet.pdf
     type: pdf
-  - title: "Slides (PDF)"
+  - title: "Notes (PDF)"
     url: /assets/teardown26_authenticated_exchanges/authenticated_exchanges.pdf
     type: pdf
 ---

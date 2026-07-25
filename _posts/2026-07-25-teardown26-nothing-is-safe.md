@@ -12,7 +12,7 @@ excerpt: >
   against physical hardware, from a free datasheet read to focused ion beam
   edits on bare silicon.
 documents:
-  - title: "Slides (PDF)"
+  - title: "Notes (PDF)"
     url: /assets/teardown26_nothing_is_safe/nothing_is_safe.pdf
     type: pdf
 ---
