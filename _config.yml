@@ -15,6 +15,7 @@ author:
 
 baseurl: ""
 url: "https://mindstormsengineering.github.io"
+timezone: America/Chicago
 
 # Build settings
 markdown: kramdown
