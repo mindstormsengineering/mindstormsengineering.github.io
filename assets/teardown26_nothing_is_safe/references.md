@@ -1,4 +1,4 @@
-# References
+# References for ["Nothing is Safe: An Introduction to Hardware (In)Security"](https://mindstormsengineering.github.io/works/2026/07/25/teardown26-nothing-is-safe/)
 
 1. https://tinyurl.com/4v5nmrf6
 2. https://tinyurl.com/bdew33pb

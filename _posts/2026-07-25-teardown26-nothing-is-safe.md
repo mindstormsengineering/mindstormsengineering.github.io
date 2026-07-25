@@ -15,6 +15,9 @@ documents:
   - title: "Notes (PDF)"
     url: /assets/teardown26_nothing_is_safe/nothing_is_safe.pdf
     type: pdf
+  - title: "References (PDF)"
+    url: /assets/teardown26_nothing_is_safe/references.pdf
+    type: pdf
 ---
 
 *Talk given at [Teardown Portland 2026](https://www.crowdsupply.com/teardown/portland-2026/long-talk/nothing-is-safe-an-introduction-to-hardware-in-security), July 2026.*
