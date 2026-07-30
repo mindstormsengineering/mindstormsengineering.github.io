@@ -22,7 +22,7 @@ documents:
 
 *Workshop given at [Teardown Portland 2026](https://www.crowdsupply.com/teardown/portland-2026/workshop/how-hardware-gets-hacked-authenticated-exchanges), July 2026.*
 
-![Sequence diagram of mutual authentication between a badge and a door reader, alongside a passing test log showing both phases of the handshake succeeding]({{ '/assets/teardown26_authenticated_exchanges/mutual_authentication.png' | relative_url }})
+{% include youtube.html id="videoseries?list=PLIBdtC7CKWEM" %}
 
 Code and exercises for this workshop are on GitHub: [nathancharlesjones/authenticated_exchanges](https://github.com/nathancharlesjones/authenticated_exchanges).
 
